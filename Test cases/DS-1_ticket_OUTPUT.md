@@ -1,9 +1,47 @@
 # DS-1 — Test Plan: Create New Academic Program
 
+**Jira:** [DS-1 — Create new academic program](https://legionqaschool.atlassian.net/browse/DS-1)  
 **Feature:** Create new academic program  
-**Scope:** Program creation modal/form from the Programs page  
-**Field names:** Program Name, Description  
-**Primary actions:** `+ New Program`, `Create`
+**Scope:** Program creation modal/form from the Programs page (`/programs`)  
+**Field names:** Program Name (required), Description (optional), plus AI Generation Config fields  
+**Primary actions:** `+ New Program`, `Create`, `Cancel`
+
+## Jira Acceptance Criteria
+
+```gherkin
+Scenario: Navigate to program creation form
+  Given I am logged in as admin
+  When I navigate to the Programs page
+  And I click "+ New Program"
+  Then I see the program creation form with fields: Program Name, Description
+
+Scenario: Successfully create a program
+  Given I am on the program creation form
+  When I fill in Program Name with "Web Development 2026"
+  And I fill in Description with "Full-stack web development program"
+  And I click Create
+  Then the modal closes
+  And the program list shows "Web Development 2026"
+
+Scenario: Validation prevents empty program name
+  Given I am on the program creation form
+  When I leave the Program Name field empty
+  Then the Create button is disabled
+```
+
+## App Observations (Playwright MCP — test.didaxis.studio)
+
+> **Note:** Observations below document live app behavior. Tests assert **Jira AC / test-plan requirements**. Where the app diverges, bugs are logged as DS-1 sub-tasks.
+
+| Area | Observed behavior | Test expectation | Bug sub-task |
+|------|-------------------|------------------|--------------|
+| Duplicates | Same Program Name creates 2 rows, no error | Only one entry allowed | DS-137 |
+| Max name length | 256+ chars accepted | Create disabled / validation | DS-138 |
+| Max description | 2001+ chars accepted | Create disabled / validation | DS-139 |
+| Whitespace | Leading/trailing spaces preserved | Trimmed on save | DS-140 |
+| Double-submit | Double-click creates 2 rows | Exactly one program | DS-141 |
+| Create validation | Disabled when empty / whitespace-only | Per Jira AC | — (passes) |
+| AC create flow | Modal closes, program in list | Exact AC values | — (passes) |
 
 ---
 
@@ -31,10 +69,13 @@ Scenario: Navigate to program creation form
 ```
 
 **Expected result:**
-- Program creation form (modal) is visible
-- `Program Name` field is present and editable
-- `Description` field is present and editable
-- `Create` button is visible
+- Programs page shows heading `Programs` and subtitle `Manage academic programs and semesters`
+- Program creation modal (`New Program` dialog) is visible
+- `Program Name *` field is present and editable (placeholder: `e.g. Computer Science BSc`)
+- `Description` field is present and editable (placeholder: `Brief description`)
+- `Create` button is visible and disabled until Program Name has non-whitespace input
+- `Cancel` button and X close control are visible
+- AI Generation Config section is present (collapsible; not required for create)
 
 **Priority:** High
 
@@ -67,9 +108,10 @@ Scenario: Successfully create a program
 
 **Expected result:**
 - Modal closes
-- Programs list includes `Web Development 2026`
+- Programs list includes `Web Development 2026` at the top of the table
+- Description `Full-stack web development program` appears under the program name in the row
 - No error message is shown
-- New program persists after page refresh (recommended follow-up check)
+- New program persists after page refresh
 
 **Priority:** High
 
@@ -102,7 +144,7 @@ Scenario: Create program with empty description
 **Expected result:**
 - Modal closes
 - `Data Science Fundamentals` appears in the program list
-- Description is stored as empty or not shown (per product rules)
+- Description paragraph is **not shown** in the list row when left empty
 
 **Priority:** Medium
 
@@ -334,8 +376,9 @@ Scenario: Duplicate program name is not silently accepted
 ```
 
 **Expected result:**
-- Either creation is blocked with a clear error, or duplicates are allowed by explicit product rule
-- User is not left with ambiguous duplicate entries without feedback
+- Either creation is blocked with a clear error, or duplicates are prevented
+- Program list contains only one entry with that Program Name
+- **Bug logged:** [DS-137](https://legionqaschool.atlassian.net/browse/DS-137) — app allows silent duplicates
 
 **Priority:** High
 
@@ -444,8 +487,9 @@ Scenario: Program name exceeding maximum length is rejected
 ```
 
 **Expected result:**
-- At max length: success (or documented behavior)
-- Over max: blocked with validation; no truncated silent save
+- At max length (255): success
+- Over max (256+): Create disabled or validation shown; no program created
+- **Bug logged:** [DS-138](https://legionqaschool.atlassian.net/browse/DS-138) — 256+ chars not rejected
 
 **Priority:** Medium
 
@@ -483,8 +527,9 @@ Scenario: Description exceeding maximum length is handled
 ```
 
 **Expected result:**
-- Behavior matches documented max-length rules
-- No silent data loss without user feedback
+- At max length (2000): success
+- Over max (2001+): validation prevents submission
+- **Bug logged:** [DS-139](https://legionqaschool.atlassian.net/browse/DS-139) — 2001+ chars not rejected
 
 **Priority:** Low
 
@@ -580,8 +625,8 @@ Scenario: Leading and trailing whitespace in program name
 ```
 
 **Expected result:**
-- Name is trimmed on save (recommended), or stored exactly as entered with documented behavior
-- Duplicate detection uses normalized value if trimming applies
+- Name is trimmed on save — list shows `Game Development 2026` without padding
+- **Bug logged:** [DS-140](https://legionqaschool.atlassian.net/browse/DS-140) — whitespace preserved
 
 **Priority:** Medium
 
@@ -646,8 +691,8 @@ Scenario: Double submit creates only one program
 ```
 
 **Expected result:**
-- Single program created
-- Create button disabled during submission (loading state)
+- Single program created; Create disabled during submission
+- **Bug logged:** [DS-141](https://legionqaschool.atlassian.net/browse/DS-141) — double-click creates 2 rows
 
 **Priority:** Medium
 
@@ -678,11 +723,105 @@ Scenario: New program appears in expected list order
   And the new program appears at the top of the list sorted by creation date descending
 ```
 
-**Expected result:**
-- New item appears per documented sort (e.g. newest first or alphabetical)
+**Expected result (observed):**
+- New item appears at the **top** of the list (newest-first by creation date)
 - Behavior is consistent across refreshes
 
 **Priority:** Low
+
+---
+
+### TC-021 — AI Generation Config section displays with defaults
+
+**Title:** New Program modal includes optional AI curriculum fields with default values
+
+**Preconditions:**
+- User is logged in as admin
+- User opened the New Program modal
+
+**Steps:**
+1. Observe the AI Generation Config section
+2. Verify default field values
+
+**Gherkin:**
+```gherkin
+Scenario: AI Generation Config fields are visible with defaults
+  Given I am on the program creation form
+  Then I see the "Show AI Generation Config" section
+  And I see fields: Total Program Hours, Default Session Hours, Default Exam Hours, Target Audience, Focus Areas, Sync/Async Ratio
+  And Default Session Hours defaults to "4"
+  And Default Exam Hours defaults to "3"
+  And Sync/Async Ratio defaults to "70% sync / 30% async"
+```
+
+**Expected result:**
+- AI config fields are visible (section may be expanded by default)
+- Defaults: Session Hours `4`, Exam Hours `3`, Sync/Async `70% sync / 30% async`
+- Program can still be created with only Program Name filled (AI fields optional)
+
+**Priority:** Medium
+
+---
+
+### TC-022 — Programs page layout and list structure
+
+**Title:** Programs page shows correct heading, table, and semester helper text
+
+**Preconditions:**
+- User is logged in as admin
+
+**Steps:**
+1. Navigate to `/programs`
+2. Observe page chrome and table structure
+
+**Gherkin:**
+```gherkin
+Scenario: Programs page displays management layout
+  Given I am logged in as admin
+  When I navigate to the Programs page
+  Then I see the heading "Programs"
+  And I see the subtitle "Manage academic programs and semesters"
+  And I see the "+ New Program" button
+  And I see a programs table with a "Program" column header
+  And I see the helper text "Select a program to manage semesters"
+```
+
+**Expected result:**
+- Page layout matches observed structure from live app
+- Existing programs show name and description in the first table cell
+
+**Priority:** Medium
+
+---
+
+### TC-023 — Modal dismiss via X close button
+
+**Title:** Clicking the X button on the New Program modal does not create a program
+
+**Preconditions:**
+- User is logged in as admin
+- User is on the program creation form with filled fields
+
+**Steps:**
+1. Enter a program name and description
+2. Click the X button in the modal header
+3. Review the program list
+
+**Gherkin:**
+```gherkin
+Scenario: X button closes modal without creating program
+  Given I am on the program creation form
+  When I fill in Program Name with "Dismiss Test 2026"
+  And I click the modal close button
+  Then the modal closes
+  And the program list does not show "Dismiss Test 2026"
+```
+
+**Expected result:**
+- Modal closes via X button
+- No new program in list
+
+**Priority:** Medium
 
 ---
 
@@ -690,26 +829,22 @@ Scenario: New program appears in expected list order
 
 | Acceptance Criteria | Test Case(s) |
 |---------------------|--------------|
-| Navigate to program creation form | TC-001 |
-| Successfully create a program | TC-002, TC-004, TC-005 |
+| Navigate to program creation form | TC-001, TC-022 |
+| Successfully create a program | TC-002, TC-003, TC-004, TC-005 |
 | Validation prevents empty program name | TC-006, TC-007 |
 
 ---
 
 ## Ambiguities and Gaps in the Acceptance Criteria
 
-1. **Description required or optional?** AC only validates empty Program Name. TC-003 assumes Description is optional; confirm with product.
-2. **Max length** for Program Name and Description is not specified (TC-013, TC-014 use assumed limits).
-3. **Duplicate Program Name policy** is undefined — block, allow, or warn (TC-010).
-4. **Whitespace handling** — whether `"   "` counts as empty and whether leading/trailing spaces are trimmed (TC-007, TC-017).
-5. **Modal dismiss behavior** — Cancel button, X, Esc, click-outside not mentioned (TC-009).
-6. **Non-admin access** — AC assumes admin only; no explicit RBAC criteria (TC-008).
-7. **List behavior after create** — sort order, pagination, search/filter not defined (TC-005, TC-020).
-8. **Success feedback** — AC only says modal closes; toast/confirmation message not specified.
-9. **Persistence** — AC does not require refresh/navigation to confirm save (recommended in TC-002).
-10. **Field types** — single-line vs multiline Description, character counters, placeholders not defined.
-11. **Error handling** — network/API failures not in AC (TC-011).
-12. **Internationalization** — Unicode/RTL support not mentioned (TC-016).
-13. **Security** — XSS/sanitization for Description not in AC (TC-018).
-14. **Concurrent creation / double-submit** not covered (TC-019).
-15. **Minimum Program Name length** — single character allowed or not (TC-012).
+1. **Description required or optional?** Confirmed optional in live app (TC-003); empty description hidden in list.
+2. **Max length** — not enforced client-side; 255+ name and 2000+ description accepted (TC-013, TC-014).
+3. **Duplicate Program Name policy** — app allows duplicates with no error (TC-010).
+4. **Whitespace handling** — whitespace-only name blocked (TC-007); leading/trailing spaces preserved, not trimmed (TC-017).
+5. **Modal dismiss behavior** — Cancel (TC-009) and X button (TC-023) both work; Esc not verified.
+6. **Non-admin access** — Confluence lists Editor/Viewer roles; AC assumes admin only (TC-008).
+7. **AI Generation Config** — present in modal but not mentioned in AC (TC-021).
+8. **List behavior** — newest-first sort confirmed (TC-020); pagination/search not present.
+9. **Success feedback** — no toast; modal close + list update only.
+10. **Double-submit** — not guarded; creates duplicates (TC-019).
+11. **Confluence vs app** — docs say `Save` button; app uses `Create`.
