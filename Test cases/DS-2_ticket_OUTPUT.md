@@ -1,10 +1,58 @@
 # DS-2 — Test Plan: Edit Existing Program Details
 
+**Jira:** [DS-2 — Edit existing program details](https://legionqaschool.atlassian.net/browse/DS-2)  
 **Feature:** Edit existing academic program  
-**Scope:** Edit program modal/form from the Programs page  
-**Field names:** Program Name, Description  
-**Primary actions:** Edit icon (per program row), `Save`  
+**Scope:** Edit program modal/form from the Programs page (`/programs`)  
+**Field names:** Program Name (required), Description (optional), plus AI Generation Config fields  
+**Primary actions:** Edit icon (per program row — accessible name `Edit {ProgramName}`), `Save`, `Cancel`  
 **Sample program:** `Web Development 2026` — Description: `Full-stack web development program`
+
+## Jira Acceptance Criteria
+
+```gherkin
+Scenario: Open program for editing
+  Given I am on the Programs page
+  And a program "Web Development 2026" exists
+  When I click the edit icon on "Web Development 2026"
+  Then I see the edit form pre-populated with the program's current data
+
+Scenario: Successfully edit a program name
+  Given I am editing "Web Development 2026"
+  When I change the Name to "Web Development 2026 - Updated"
+  And I click Save
+  Then the modal closes
+  And the program list immediately shows "Web Development 2026 - Updated"
+
+Scenario: Edit preserves unchanged fields
+  Given I am editing a program
+  When I only change the Description
+  And I click Save
+  Then the Name and other fields remain unchanged
+```
+
+## Confluence Context (Atlassian MCP)
+
+**Architecture Overview** — Didaxis Studio uses a three-layer model (Session Templates → Scheduled Sessions → Assignments). Programs are the top-level container for semesters, courses, and session templates. Calendar is the live data source; validation runs after every mutation (debounced 500ms).
+
+**Program Setup — Overview** — Edit flow: Programs page → click ✏️ icon on program row → **Edit Program** modal → modify fields → **Save**. Modal closes; list immediately reflects updated data. Target users: **Admin** (full CRUD), **Editor** (create/edit), **Viewer** (read-only).
+
+## App Observations (Playwright MCP — test.didaxis.studio)
+
+| Area | Observed behavior | Test expectation | Notes |
+|------|-------------------|------------------|-------|
+| Edit modal title | Dialog named `Edit Program` | Pre-populated edit form opens | Confirmed |
+| Edit button | `getByRole('button', { name: 'Edit {ProgramName}' })` | Click edit icon on row | Not a generic icon-only button |
+| Save / Cancel | `Save` and `Cancel` buttons in modal footer; X in banner | Per Jira AC | Confirmed |
+| Empty name | `Save` disabled when Program Name cleared | Validation blocks save | Confirmed |
+| Whitespace-only name | `Save` disabled for `"   "` | Same as create (DS-1) | Confirmed |
+| Empty description | `Save` enabled when Description cleared | Description optional | Confirmed |
+| AI Generation Config | Collapsible section with Total Program Hours, Default Session/Exam Hours, Target Audience, Focus Areas, Sync/Async slider | Present but not in Jira AC | TC-025 |
+| Max name length (256+) | `Save` remains enabled at 256 chars | Disabled or validation error (255 max, per DS-1) | [DS-142](https://legionqaschool.atlassian.net/browse/DS-142) |
+| Max description (2001+) | `Save` remains enabled at 2001 chars | Disabled or validation error (2000 max) | [DS-144](https://legionqaschool.atlassian.net/browse/DS-144) |
+| Duplicate names on edit | Renaming blocked in latest run (TC-011 passes) | Reject duplicate with error | — (passes) |
+| Whitespace trim on edit | Padded name saved as-is | Trimmed on save (DS-1 parity) | [DS-143](https://legionqaschool.atlassian.net/browse/DS-143) |
+| List layout | Table with `Program` column; name + description as two `<p>` elements per row | Immediate list update after save | Confirmed |
+| Semester panel | Right panel: "Select a program to manage semesters"; row click selects program | Edit button should not trigger row navigation | TC-026 |
 
 ---
 
@@ -36,10 +84,11 @@ Scenario: Open program for editing
 ```
 
 **Expected result:**
-- Edit modal opens
+- **Edit Program** modal opens (`role="dialog"`, name `Edit Program`)
 - `Program Name` field contains `Web Development 2026`
 - `Description` field contains `Full-stack web development program`
 - `Save` button is visible and enabled (name is non-empty)
+- `Cancel` button and banner X close button are visible
 
 **Priority:** High
 
@@ -328,68 +377,70 @@ Scenario: Cancel edit does not persist changes
 
 ---
 
-### TC-010 — Non-admin cannot edit programs
+### TC-010 — Viewer role cannot edit programs
 
-**Title:** Non-admin users do not see or cannot use the edit icon
+**Title:** Read-only users do not see or cannot use the edit icon
 
 **Preconditions:**
-- User is logged in as instructor (or student)
+- User is logged in as **Viewer** (per Confluence Program Setup — Overview)
 - Program `Web Development 2026` exists on Programs page
 
 **Steps:**
 1. Navigate to Programs page
-2. Look for edit icon on `Web Development 2026`
+2. Look for edit button (`Edit Web Development 2026`) on the program row
 3. If hidden, attempt direct API/URL edit access
 
 **Gherkin:**
 ```gherkin
-Scenario: Non-admin cannot edit programs
-  Given I am logged in as instructor
+Scenario: Viewer cannot edit programs
+  Given I am logged in as viewer
   And I am on the Programs page
   And a program "Web Development 2026" exists
-  Then I do not see an edit icon on "Web Development 2026"
-  And I cannot access the program edit form
+  Then I do not see an edit button on "Web Development 2026"
+  And I cannot access the Edit Program modal
 ```
 
 **Expected result:**
-- Edit icon hidden or disabled
-- Direct edit access rejected (403/redirect)
+- Edit button hidden or disabled for Viewer role
+- Editor and Admin roles **can** edit (per Confluence)
+- Direct edit access rejected for unauthorized roles (403/redirect)
 - Program data unchanged
 
 **Priority:** High
 
 ---
 
-### TC-011 — Renaming to an existing program name is rejected or handled per policy
+### TC-011 — Renaming to an existing program name is handled per business rules
 
-**Title:** Duplicate Program Name on edit does not silently overwrite another program
+**Title:** Duplicate Program Name on edit follows same policy as create (DS-1)
 
 **Preconditions:**
 - User is logged in as admin
-- Programs `Web Development 2026` and `Cloud Engineering 2026` both exist
-- User edits `Cloud Engineering 2026`
+- Programs `Alpha Program {unique}` and `Beta Program {unique}` both exist
+- User edits `Beta Program {unique}`
 
 **Steps:**
-1. Change Program Name to `Web Development 2026`
+1. Change Program Name to match `Alpha Program {unique}` exactly
 2. Click `Save`
 3. Observe error handling and both program rows
 
 **Gherkin:**
 ```gherkin
 Scenario: Duplicate program name on edit is handled
-  Given I am editing "Cloud Engineering 2026"
-  And a program "Web Development 2026" already exists
-  When I change the Program Name to "Web Development 2026"
+  Given I am editing "Beta Program"
+  And a program "Alpha Program" already exists
+  When I change the Program Name to "Alpha Program"
   And I click Save
-  Then the save is rejected with a clear validation error
-  And the program list still shows both "Web Development 2026" and "Cloud Engineering 2026"
-  And "Cloud Engineering 2026" is not renamed
+  Then duplicate names are rejected with a clear validation error
+  And "Beta Program" is not renamed
 ```
 
-**Expected result:**
-- Validation error displayed (or silent dedupe per product rule — must be defined)
+**Expected result (requirement):**
+- Validation error displayed; duplicate names must not be silently accepted
 - No data loss on either program
 - Modal remains open for correction
+
+**Observed (MCP):** Create flow allows duplicate names (DS-1 bug DS-137); edit likely shares the same backend. Automated tests assert the requirement, not the current bug.
 
 **Priority:** High
 
@@ -471,8 +522,8 @@ Scenario: Double Save does not cause duplicate updates
 
 **Preconditions:**
 - User is logged in as admin
-- Max length for Program Name is defined (e.g. 255 characters — adjust to spec)
-- User is editing `Web Development 2026`
+- Maximum Program Name length is **255 characters** (same as DS-1 create flow)
+- User is editing a seeded test program
 
 **Steps:**
 1. Replace Program Name with a 255-character string (e.g. `W` repeated 255 times)
@@ -482,7 +533,7 @@ Scenario: Double Save does not cause duplicate updates
 **Gherkin:**
 ```gherkin
 Scenario: Program name at max length is saved
-  Given I am editing "Web Development 2026"
+  Given I am editing a test program
   And the maximum Program Name length is 255 characters
   When I change the Program Name to a 255-character valid name
   And I click Save
@@ -495,6 +546,8 @@ Scenario: Program name at max length is saved
 - Full value stored and retrievable
 - UI handles display truncation gracefully if list column is narrow
 
+**Observed (MCP):** 256-character name does not disable `Save` in the edit modal (same gap as DS-1 DS-138).
+
 **Priority:** Medium
 
 ---
@@ -505,17 +558,17 @@ Scenario: Program name at max length is saved
 
 **Preconditions:**
 - User is logged in as admin
-- Max length = 255 characters (example)
-- User is editing `Web Development 2026`
+- Max length = **255 characters** (same as DS-1)
+- User is editing a seeded test program
 
 **Steps:**
 1. Enter 256-character Program Name
-2. Attempt Save
+2. Observe `Save` button state and attempt Save
 
 **Gherkin:**
 ```gherkin
 Scenario: Program name over max length is rejected
-  Given I am editing "Web Development 2026"
+  Given I am editing a test program
   And the maximum Program Name length is 255 characters
   When I change the Program Name to a 256-character string
   Then the Save button is disabled or a max-length validation error is shown
@@ -525,6 +578,10 @@ Scenario: Program name over max length is rejected
 **Expected result:**
 - Input blocked at field level and/or validation on submit
 - Original name preserved
+
+**Observed (MCP):** `Save` stays enabled at 256 characters.
+
+**Bug logged:** [DS-142](https://legionqaschool.atlassian.net/browse/DS-142) — failing assertion line **383** in `tests/ds2-edit-program.spec.ts`
 
 **Priority:** Medium
 
@@ -536,8 +593,8 @@ Scenario: Program name over max length is rejected
 
 **Preconditions:**
 - User is logged in as admin
-- Max Description length defined (e.g. 2000 characters)
-- User is editing `Web Development 2026`
+- Max Description length = **2000 characters** (same as DS-1)
+- User is editing a seeded test program
 
 **Steps:**
 1. Enter a 2000-character Description
@@ -559,6 +616,31 @@ Scenario: Description at max length is saved
 - Re-opened form shows complete text
 
 **Priority:** Low
+
+---
+
+### TC-016b — Description exceeding max length is rejected on edit
+
+**Title:** Description one character over max length cannot be saved on edit
+
+**Preconditions:**
+- User is logged in as admin
+- Max Description length = **2000 characters**
+- User is editing a seeded test program
+
+**Gherkin:**
+```gherkin
+Scenario: Description over max length is rejected on edit
+  Given I am editing a test program
+  And the maximum Description length is 2000 characters
+  When I change the Description to a 2001-character string
+  Then the Save button is disabled or a max-length validation error is shown
+  And the program is not updated
+```
+
+**Bug logged:** [DS-144](https://legionqaschool.atlassian.net/browse/DS-144) — failing assertion line **409** in `tests/ds2-edit-program.spec.ts`
+
+**Priority:** Medium
 
 ---
 
@@ -655,6 +737,8 @@ Scenario: Leading and trailing whitespace in program name is normalized
 **Expected result:**
 - Trim on save (recommended, aligned with create flow) OR validation error — behavior must match create
 - List shows normalized name
+
+**Bug logged:** [DS-143](https://legionqaschool.atlassian.net/browse/DS-143) — failing assertion line **458** in `tests/ds2-edit-program.spec.ts`
 
 **Priority:** Medium
 
@@ -821,33 +905,125 @@ Scenario: Concurrent edits handle conflict appropriately
 
 ---
 
+### TC-025 — Edit modal includes AI Generation Config section
+
+**Title:** Edit Program modal exposes the same AI Generation Config fields as create
+
+**Preconditions:**
+- User is logged in as admin
+- User opens edit form for any existing program
+
+**Steps:**
+1. Click edit on a program row
+2. Observe fields below Description separator
+3. Expand `▸ Show AI Generation Config` if collapsed
+
+**Gherkin:**
+```gherkin
+Scenario: Edit form shows AI Generation Config
+  Given I am on the Programs page
+  When I open the edit form for an existing program
+  Then I see the "Show AI Generation Config" section
+  And I see Total Program Hours, Default Session Hours, and Default Exam Hours fields
+  And I see Target Audience and Focus Areas fields
+  And I see the Sync/Async Ratio slider
+```
+
+**Expected result:**
+- AI config fields visible in edit modal (defaults: Session Hours `4`, Exam Hours `3`, ratio 70/30)
+- Fields are editable without affecting Name/Description unless explicitly changed
+
+**Priority:** Medium
+
+---
+
+### TC-026 — Clicking edit button does not trigger row selection
+
+**Title:** Edit icon click opens modal without navigating semester panel
+
+**Preconditions:**
+- User is logged in as admin
+- Programs page shows at least one program
+
+**Steps:**
+1. Note right panel shows "Select a program to manage semesters"
+2. Click `Edit {ProgramName}` button (not the row body)
+3. Observe modal opens and semester panel state
+
+**Gherkin:**
+```gherkin
+Scenario: Edit button opens modal without row navigation side effect
+  Given I am on the Programs page
+  When I click the edit button on a program row
+  Then the Edit Program modal opens
+  And the edit action does not cause unexpected page navigation
+```
+
+**Expected result:**
+- Edit modal opens
+- Row click (separate action) selects program for semester management; edit button is isolated
+
+**Priority:** Low
+
+---
+
+### TC-027 — Modal dismiss via X close button discards changes
+
+**Title:** Banner X button closes edit modal without saving
+
+**Preconditions:**
+- User is logged in as admin
+- User opens edit form for a program
+
+**Steps:**
+1. Modify Program Name and Description
+2. Click the X button in the modal banner (not Cancel)
+3. Verify list unchanged
+
+**Gherkin:**
+```gherkin
+Scenario: X close button discards edit changes
+  Given I am editing a program
+  When I change fields and click the modal X close button
+  Then the Edit Program modal closes
+  And the program list shows the original program data
+```
+
+**Expected result:**
+- Same behavior as Cancel (TC-009)
+- No changes persisted
+
+**Priority:** Medium
+
+---
+
 ## AC Coverage Matrix
 
 | Acceptance Criteria | Test Case(s) |
 |---------------------|--------------|
-| Open program for editing (pre-populated form) | TC-001 |
+| Open program for editing (pre-populated form) | TC-001, TC-025 |
 | Successfully edit program name | TC-002 |
-| Edit preserves unchanged fields | TC-003 |
+| Edit preserves unchanged fields | TC-003, TC-004, TC-005, TC-006 |
 
 ---
 
 ## Ambiguities and Gaps in the Acceptance Criteria
 
-1. **Submit button label** — AC says `Save`; create flow uses `Create`. Confirm the edit modal button is labeled `Save` (not `Update` or `Submit`).
-2. **Field inventory** — ACs only mention Name and Description implicitly. Confirm no additional read-only fields (ID, created date, status) appear on the edit form.
-3. **Program Name validation on edit** — Create AC disables `Create` when name is empty (DS-1 FR-06). Edit ACs do not state whether the same rule applies to `Save`; assumed parity with create (TC-007, TC-008).
-4. **Description required vs optional** — Not specified for edit. Create flow treats Description as optional; edit should follow the same rule (TC-020).
-5. **Max length** — No limits documented for Program Name or Description. Boundary tests (TC-014–TC-016) need product-defined values.
-6. **Duplicate name policy** — ACs silent on renaming to an existing name. TC-011 needs a defined rule (reject, allow, merge).
-7. **Whitespace trimming** — Not specified. Leading/trailing spaces on rename could create near-duplicates (TC-019).
-8. **Cancel / dismiss behavior** — ACs do not cover Cancel, X, Esc, or click-outside. TC-009 assumes standard modal dismiss.
-9. **Non-admin access** — Implied by create FR-01 but not in edit ACs. Edit icon visibility and API authorization should be confirmed (TC-010).
-10. **List update mechanism** — AC says list updates "immediately"; unclear if this is optimistic UI, refetch, or websocket. Persistence after refresh not specified.
-11. **Success feedback** — No toast or confirmation message mentioned after save.
-12. **Error handling** — No AC for API/network failure, validation messages, or loading/disabled state during save (TC-012).
-13. **"Other fields" scope** — AC-3 says "Name and other fields remain unchanged" but only Name and Description are known. Clarify what "other fields" includes (metadata, sort order, linked courses).
-14. **Edit entry point** — AC references "edit icon" only. No AC for keyboard access, row click, or context menu alternatives.
-15. **Renaming to same name with changed Description** — Covered by TC-003; ACs do not explicitly call out this subset of "unchanged fields."
-16. **Concurrent editing** — Not in scope of ACs; may matter for multi-admin environments (TC-024).
-17. **Security** — XSS/sanitization for Description not in AC (TC-023).
+1. **Submit button label** — **Resolved (MCP):** Edit modal uses `Save`; create uses `Create`.
+2. **Field inventory** — **Resolved (MCP):** Edit form shows Program Name, Description, and AI Generation Config (not in AC). No read-only ID/date fields visible.
+3. **Program Name validation on edit** — **Resolved (MCP):** `Save` disabled when name empty or whitespace-only (TC-007, TC-008).
+4. **Description required vs optional** — **Resolved (MCP):** Description optional; empty Description allows Save (TC-020).
+5. **Max length** — **Partially resolved:** Same 255 / 2000 limits as DS-1; edit modal may not enforce in UI (DS-138, DS-139).
+6. **Duplicate name policy** — **Observed:** App allows duplicates on create (DS-137); edit likely same. Tests assert rejection (TC-011).
+7. **Whitespace trimming** — Not observed on create (DS-140); edit should match (TC-019).
+8. **Cancel / dismiss behavior** — **Resolved (MCP):** Cancel and banner X both available (TC-009, TC-027).
+9. **Role-based access** — **Resolved (Confluence):** Admin + Editor can edit; Viewer read-only (TC-010).
+10. **List update mechanism** — AC says "immediately"; MCP confirms in-place list update after Save.
+11. **Success feedback** — No toast observed after save.
+12. **Error handling** — No AC for API/network failure (TC-012).
+13. **"Other fields" scope** — AC-3 "other fields" includes AI Generation Config defaults if not modified (TC-025).
+14. **Edit entry point** — **Resolved (MCP):** Button accessible name `Edit {ProgramName}`; row click selects program for semesters, not edit.
+15. **Renaming to same name with changed Description** — Covered by TC-003.
+16. **Concurrent editing** — Not in AC (TC-024).
+17. **Security** — XSS not in AC (TC-023).
 18. **Double-submit / loading state** — Not in AC (TC-013).
