@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from '../fixtures/cleanup.fixture';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -95,13 +95,31 @@ async function closeModalViaX(page: Page): Promise<void> {
 async function fillAndCreateProgram(
   page: Page,
   name: string,
+  trackProgram: (uuid: string) => void,
   description?: string,
+  submit?: () => Promise<void>,
 ): Promise<void> {
+  const createResponse = page.waitForResponse(
+    (res) => res.url().includes('/api/programs') && res.request().method() === 'POST',
+  );
+
   await programNameField(page).fill(name);
   if (description !== undefined) {
     await descriptionField(page).fill(description);
   }
-  await createButton(page).click();
+  if (submit) {
+    await submit();
+  } else {
+    await createButton(page).click();
+  }
+
+  const response = await createResponse;
+  if (response.ok()) {
+    const body = await response.json();
+    if (body?.data?.id) {
+      trackProgram(body.data.id);
+    }
+  }
 }
 
 test.beforeEach(async ({ page }) => {
@@ -122,24 +140,24 @@ test.describe('Positive Flows', () => {
     await expect(createButton(page)).toBeVisible();
   });
 
-  test('TC-002 — Program is created and appears in the list', async ({ page }) => {
+  test('TC-002 — Program is created and appears in the list', async ({ page, trackProgram }) => {
     // Jira AC uses exact values: "Web Development 2026" / "Full-stack web development program"
     const programName = 'Web Development 2026';
     const description = 'Full-stack web development program';
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, programName, description);
+    await fillAndCreateProgram(page, programName, trackProgram, description);
 
     // Jira AC: "the modal closes" and "the program list shows Web Development 2026"
     await expect(programModal(page)).toBeHidden();
     await expect(programInList(page, programName).first()).toBeVisible();
   });
 
-  test('TC-003 — Program can be created with Program Name only', async ({ page }) => {
+  test('TC-003 — Program can be created with Program Name only', async ({ page, trackProgram }) => {
     const programName = uniqueName('Data Science Fundamentals');
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, programName);
+    await fillAndCreateProgram(page, programName, trackProgram);
 
     await expect(programModal(page)).toBeHidden();
     await expect(programInList(page, programName)).toBeVisible();
@@ -156,17 +174,17 @@ test.describe('Positive Flows', () => {
     await expect(createButton(page)).toBeEnabled();
   });
 
-  test('TC-005 — New program appears without disrupting existing list entries', async ({ page }) => {
+  test('TC-005 — New program appears without disrupting existing list entries', async ({ page, trackProgram }) => {
     const existingProgram = uniqueName('Mobile App Development 2025');
     const newProgram = uniqueName('Cloud Engineering 2026');
     const description = 'AWS and Azure fundamentals';
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, existingProgram, 'Existing program seed');
+    await fillAndCreateProgram(page, existingProgram, trackProgram, 'Existing program seed');
     await expect(programInList(page, existingProgram)).toBeVisible();
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, newProgram, description);
+    await fillAndCreateProgram(page, newProgram, trackProgram, description);
 
     await expect(programInList(page, newProgram)).toBeVisible();
     await expect(programInList(page, existingProgram)).toBeVisible();
@@ -206,11 +224,11 @@ test.describe('Negative Flows', () => {
     await expect(programInList(page, programName)).toHaveCount(0);
   });
 
-  test('TC-010 — Duplicate program name is rejected or handled per business rules', async ({ page }) => {
+  test('TC-010 — Duplicate program name is rejected or handled per business rules', async ({ page, trackProgram }) => {
     const programName = uniqueName('Web Development 2026');
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, programName, 'Original program');
+    await fillAndCreateProgram(page, programName, trackProgram, 'Original program');
     await expect(programInList(page, programName)).toHaveCount(1);
 
     await openNewProgramModal(page);
@@ -253,7 +271,7 @@ test.describe('Negative Flows', () => {
 });
 
 test.describe('Edge Cases', () => {
-  test('TC-012 — Minimum-length Program Name (single character)', async ({ page }) => {
+  test('TC-012 — Minimum-length Program Name (single character)', async ({ page, trackProgram }) => {
     const programName = String.fromCharCode(65 + (Date.now() % 26));
     const description = `Single letter program name test ${Date.now()}`;
 
@@ -261,18 +279,18 @@ test.describe('Edge Cases', () => {
     const rowsBefore = await page.locator('tbody tr').count();
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, programName, description);
+    await fillAndCreateProgram(page, programName, trackProgram, description);
 
     await expect(page.locator('tbody tr')).toHaveCount(rowsBefore + 1);
     await expect(programInList(page, programName).last()).toBeVisible();
   });
 
-  test('TC-013 — Maximum-length Program Name boundary', async ({ page }) => {
+  test('TC-013 — Maximum-length Program Name boundary', async ({ page, trackProgram }) => {
     const maxName = `${'W'.repeat(255)} ${Date.now()}`;
     const overMaxName = `${'W'.repeat(256)} ${Date.now()}`;
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, maxName, 'Boundary test at max length');
+    await fillAndCreateProgram(page, maxName, trackProgram, 'Boundary test at max length');
     await expect(programInList(page, maxName)).toHaveCount(1);
 
     await openNewProgramModal(page);
@@ -284,14 +302,14 @@ test.describe('Edge Cases', () => {
     await expect(programInList(page, overMaxName)).toHaveCount(0);
   });
 
-  test('TC-014 — Maximum-length Description boundary', async ({ page }) => {
+  test('TC-014 — Maximum-length Description boundary', async ({ page, trackProgram }) => {
     const programName = uniqueName('Blockchain Basics 2026');
     const maxDescription = 'D'.repeat(2000);
     const overMaxDescription = 'D'.repeat(2001);
     const overflowName = uniqueName('Blockchain Basics 2026 overflow');
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, programName, maxDescription);
+    await fillAndCreateProgram(page, programName, trackProgram, maxDescription);
     await expect(programInList(page, programName)).toHaveCount(1);
 
     await openNewProgramModal(page);
@@ -303,33 +321,33 @@ test.describe('Edge Cases', () => {
     await expect(programInList(page, overflowName)).toHaveCount(0);
   });
 
-  test('TC-015 — Special characters in Program Name', async ({ page }) => {
+  test('TC-015 — Special characters in Program Name', async ({ page, trackProgram }) => {
     const programName = uniqueName('C++ & C# Dev (2026) — "Advanced"');
     const description = 'Covers C++, C#, and related tooling';
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, programName, description);
+    await fillAndCreateProgram(page, programName, trackProgram, description);
 
     await expect(programInList(page, programName)).toBeVisible();
   });
 
-  test('TC-016 — Unicode and emoji in Program Name and Description', async ({ page }) => {
+  test('TC-016 — Unicode and emoji in Program Name and Description', async ({ page, trackProgram }) => {
     const programName = uniqueName('תוכנית פיתוח אתרים 2026 🎓');
     const description = 'תיאור בעברית — full-stack program';
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, programName, description);
+    await fillAndCreateProgram(page, programName, trackProgram, description);
 
     await expect(programInList(page, programName)).toBeVisible();
   });
 
-  test('TC-017 — Leading and trailing whitespace in Program Name', async ({ page }) => {
+  test('TC-017 — Leading and trailing whitespace in Program Name', async ({ page, trackProgram }) => {
     const coreName = uniqueName('Game Development 2026');
     const paddedName = `  ${coreName}  `;
     const description = 'Unity and Unreal basics';
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, paddedName, description);
+    await fillAndCreateProgram(page, paddedName, trackProgram, description);
 
     await expect(programModal(page)).toBeHidden();
     // Requirement: leading/trailing whitespace must be trimmed on save.
@@ -337,7 +355,7 @@ test.describe('Edge Cases', () => {
     await expect(programInList(page, paddedName)).toHaveCount(0);
   });
 
-  test('TC-018 — HTML/script injection in Description', async ({ page }) => {
+  test('TC-018 — HTML/script injection in Description', async ({ page, trackProgram }) => {
     const programName = uniqueName('Secure Coding 2026');
     const maliciousDescription = "<script>alert('xss')</script><img src=x onerror=alert(1)>";
 
@@ -346,32 +364,32 @@ test.describe('Edge Cases', () => {
     });
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, programName, maliciousDescription);
+    await fillAndCreateProgram(page, programName, trackProgram, maliciousDescription);
 
     await expect(programModal(page)).toBeHidden();
     await expect(programInList(page, programName)).toBeVisible();
   });
 
-  test('TC-019 — Rapid double-click on Create', async ({ page }) => {
+  test('TC-019 — Rapid double-click on Create', async ({ page, trackProgram }) => {
     const programName = uniqueName('DevOps Pipeline 2026');
     const description = 'CI/CD and infrastructure as code';
 
     await openNewProgramModal(page);
-    await programNameField(page).fill(programName);
-    await descriptionField(page).fill(description);
-    await createButton(page).dblclick();
+    await fillAndCreateProgram(page, programName, trackProgram, description, () =>
+      createButton(page).dblclick(),
+    );
 
     await expect(programModal(page)).toBeHidden({ timeout: 15000 });
     // Requirement: only one program must be created on double-click (idempotent submit).
     await expect(programInList(page, programName)).toHaveCount(1);
   });
 
-  test('TC-020 — Program list sort/order after creation', async ({ page }) => {
+  test('TC-020 — Program list sort/order after creation', async ({ page, trackProgram }) => {
     const programName = uniqueName('Quantum Computing Intro 2026');
     const description = 'Qubits and algorithms overview';
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, programName, description);
+    await fillAndCreateProgram(page, programName, trackProgram, description);
 
     await expect(programInList(page, programName)).toHaveCount(1);
     await expect(programNameInFirstRow(page)).toHaveText(programName);
