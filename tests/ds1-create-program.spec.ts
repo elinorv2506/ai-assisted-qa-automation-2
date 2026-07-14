@@ -92,34 +92,104 @@ async function closeModalViaX(page: Page): Promise<void> {
   await expect(programModal(page)).toBeHidden();
 }
 
+async function trackProgramFromResponse(
+  response: import('@playwright/test').Response,
+  trackProgram: (uuid: string) => void,
+): Promise<void> {
+  if (!response.ok()) {
+    return;
+  }
+  const body = await response.json();
+  if (body?.data?.id) {
+    trackProgram(body.data.id);
+  }
+}
+
+async function trackProgramCreatesDuring(
+  page: Page,
+  trackProgram: (uuid: string) => void,
+  action: () => Promise<void>,
+  maxCreates = 2,
+): Promise<void> {
+  const seen = new Set<string>();
+  const pending: Promise<void>[] = [];
+  let lastSeenAt = 0;
+
+  const handler = (response: import('@playwright/test').Response) => {
+    if (!response.url().includes('/api/programs') || response.request().method() !== 'POST') {
+      return;
+    }
+    pending.push(
+      (async () => {
+        if (!response.ok()) {
+          return;
+        }
+        const body = await response.json();
+        const id = body?.data?.id;
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          trackProgram(id);
+          lastSeenAt = Date.now();
+        }
+      })(),
+    );
+  };
+
+  page.on('response', handler);
+  try {
+    await action();
+
+    const deadline = Date.now() + 15000;
+    while (Date.now() < deadline) {
+      if (seen.size >= maxCreates) {
+        break;
+      }
+      if (seen.size > 0 && Date.now() - lastSeenAt > 500) {
+        break;
+      }
+      await page.waitForTimeout(50);
+    }
+  } finally {
+    await Promise.all(pending);
+    page.off('response', handler);
+  }
+}
+
 async function fillAndCreateProgram(
   page: Page,
   name: string,
   trackProgram: (uuid: string) => void,
   description?: string,
   submit?: () => Promise<void>,
+  options?: { trackAllCreates?: boolean },
 ): Promise<void> {
-  const createResponse = page.waitForResponse(
-    (res) => res.url().includes('/api/programs') && res.request().method() === 'POST',
-  );
-
   await programNameField(page).fill(name);
   if (description !== undefined) {
     await descriptionField(page).fill(description);
   }
+
+  if (options?.trackAllCreates) {
+    await trackProgramCreatesDuring(page, trackProgram, async () => {
+      if (submit) {
+        await submit();
+      } else {
+        await createButton(page).click();
+      }
+    });
+    return;
+  }
+
+  const createResponse = page.waitForResponse(
+    (res) => res.url().includes('/api/programs') && res.request().method() === 'POST',
+  );
+
   if (submit) {
     await submit();
   } else {
     await createButton(page).click();
   }
 
-  const response = await createResponse;
-  if (response.ok()) {
-    const body = await response.json();
-    if (body?.data?.id) {
-      trackProgram(body.data.id);
-    }
-  }
+  await trackProgramFromResponse(await createResponse, trackProgram);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -232,9 +302,7 @@ test.describe('Negative Flows', () => {
     await expect(programInList(page, programName)).toHaveCount(1);
 
     await openNewProgramModal(page);
-    await programNameField(page).fill(programName);
-    await descriptionField(page).fill('Duplicate attempt description');
-    await createButton(page).click();
+    await fillAndCreateProgram(page, programName, trackProgram, 'Duplicate attempt description');
     await expect(programModal(page)).toBeHidden({ timeout: 15000 });
 
     // Requirement: duplicate must not be silently accepted — only one entry allowed.
@@ -375,8 +443,13 @@ test.describe('Edge Cases', () => {
     const description = 'CI/CD and infrastructure as code';
 
     await openNewProgramModal(page);
-    await fillAndCreateProgram(page, programName, trackProgram, description, () =>
-      createButton(page).dblclick(),
+    await fillAndCreateProgram(
+      page,
+      programName,
+      trackProgram,
+      description,
+      () => createButton(page).dblclick(),
+      { trackAllCreates: true },
     );
 
     await expect(programModal(page)).toBeHidden({ timeout: 15000 });
