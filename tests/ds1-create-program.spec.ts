@@ -1,12 +1,6 @@
 import { test, expect, type Page } from '../fixtures/cleanup.fixture';
-import dotenv from 'dotenv';
-import path from 'path';
-
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const BASE_URL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
-const ADMIN_EMAIL = process.env.DIDAXIS_EMAIL;
-const ADMIN_PASSWORD = process.env.DIDAXIS_PASSWORD;
 
 function uniqueName(base: string): string {
   return `${base} ${Date.now()}`;
@@ -52,14 +46,6 @@ function programNameInFirstRow(page: Page) {
 
 function programDescriptionInRow(page: Page, name: string) {
   return programInList(page, name).first().locator('td').first().locator('p').nth(1);
-}
-
-async function loginAsAdmin(page: Page): Promise<void> {
-  await page.goto(`${BASE_URL}/login`);
-  await page.getByLabel('Email').fill(ADMIN_EMAIL!);
-  await page.getByLabel('Password').fill(ADMIN_PASSWORD!);
-  await page.getByRole('button', { name: 'Sign In' }).click();
-  await expect(page).not.toHaveURL(/\/login\/?$/);
 }
 
 async function gotoPrograms(page: Page): Promise<void> {
@@ -192,8 +178,6 @@ async function fillAndCreateProgram(
 }
 
 test.beforeEach(async ({ page }) => {
-  test.skip(!ADMIN_EMAIL || !ADMIN_PASSWORD, 'DIDAXIS_EMAIL and DIDAXIS_PASSWORD must be set');
-  await loginAsAdmin(page);
   await gotoPrograms(page);
 });
 
