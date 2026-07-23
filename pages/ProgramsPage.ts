@@ -75,6 +75,29 @@ export class ProgramsPage {
     await this.editProgramModal.dialog.waitFor({ state: 'visible' });
   }
 
+  async submitCreateForm(options: {
+    name: string;
+    description?: string;
+    submit?: () => Promise<void>;
+  }): Promise<Response> {
+    await this.newProgramModal.fillProgramName(options.name);
+    if (options.description !== undefined) {
+      await this.newProgramModal.fillDescription(options.description);
+    }
+
+    const createResponse = this.page.waitForResponse(
+      (res) => res.url().includes('/api/programs') && res.request().method() === 'POST',
+    );
+
+    if (options.submit) {
+      await options.submit();
+    } else {
+      await this.newProgramModal.clickCreate();
+    }
+
+    return createResponse;
+  }
+
   async createProgram(
     name: string,
     trackProgram: (uuid: string) => void,
@@ -84,12 +107,11 @@ export class ProgramsPage {
       trackAllCreates?: boolean;
     },
   ): Promise<void> {
-    await this.newProgramModal.fillProgramName(name);
-    if (options?.description !== undefined) {
-      await this.newProgramModal.fillDescription(options.description);
-    }
-
     if (options?.trackAllCreates) {
+      await this.newProgramModal.fillProgramName(name);
+      if (options?.description !== undefined) {
+        await this.newProgramModal.fillDescription(options.description);
+      }
       await this.trackProgramCreatesDuring(trackProgram, async () => {
         if (options.submit) {
           await options.submit();
@@ -100,17 +122,13 @@ export class ProgramsPage {
       return;
     }
 
-    const createResponse = this.page.waitForResponse(
-      (res) => res.url().includes('/api/programs') && res.request().method() === 'POST',
-    );
+    const response = await this.submitCreateForm({
+      name,
+      description: options?.description,
+      submit: options?.submit,
+    });
 
-    if (options?.submit) {
-      await options.submit();
-    } else {
-      await this.newProgramModal.clickCreate();
-    }
-
-    await this.trackProgramFromResponse(await createResponse, trackProgram);
+    await this.trackProgramFromResponse(response, trackProgram);
   }
 
   private async trackProgramFromResponse(

@@ -16,6 +16,7 @@ export class NewProgramModal {
   readonly syncAsyncRatioText: Locator;
   readonly defaultSessionHoursInput: Locator;
   readonly defaultExamHoursInput: Locator;
+  readonly duplicateNameError: Locator;
 
   constructor(private readonly page: Page) {
     this.dialog = page.getByRole('dialog', { name: 'New Program' });
@@ -33,6 +34,9 @@ export class NewProgramModal {
     this.syncAsyncRatioText = this.dialog.getByText('Sync/Async Ratio: 70% sync / 30% async');
     this.defaultSessionHoursInput = this.dialog.getByLabel('Default Session Hours');
     this.defaultExamHoursInput = this.dialog.getByLabel('Default Exam Hours');
+    this.duplicateNameError = page.getByText(
+      /already exists|duplicate program|program with this name|name.*already/i,
+    );
   }
 
   async fillProgramName(name: string): Promise<void> {
