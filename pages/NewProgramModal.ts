@@ -66,4 +66,25 @@ export class NewProgramModal {
   async closeViaX(): Promise<void> {
     await this.closeButton.click();
   }
+
+  /** Resolves a selector for AxeBuilder.include() from the role-based dialog locator. */
+  async axeScanIncludeSelector(): Promise<string> {
+    await this.dialog.waitFor({ state: 'visible' });
+    return this.dialog.evaluate((element) => {
+      if (element.id) {
+        return `#${CSS.escape(element.id)}`;
+      }
+      const ariaLabel = element.getAttribute('aria-label');
+      if (ariaLabel) {
+        const escaped = ariaLabel.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        return `[role="dialog"][aria-label="${escaped}"]`;
+      }
+      const labelledBy = element.getAttribute('aria-labelledby');
+      if (labelledBy) {
+        const firstId = labelledBy.split(/\s+/)[0];
+        return `[role="dialog"][aria-labelledby~="${CSS.escape(firstId)}"]`;
+      }
+      throw new Error('New Program dialog lacks id or labelling attributes for axe include scoping');
+    });
+  }
 }

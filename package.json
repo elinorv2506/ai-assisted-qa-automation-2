@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/elinorv2506/ai-assisted-qa-automation-2#readme",
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.61.0",
     "@types/node": "^26.0.0"
   },
