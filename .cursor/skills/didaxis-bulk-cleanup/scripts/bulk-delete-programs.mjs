@@ -6,7 +6,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '../../../..');
 
 dotenv.config({ path: path.join(projectRoot, '.env') });
-dotenv.config({ path: path.join(projectRoot, 'TODO_MVC/.env') });
 
 const BASE_URL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
 const dryRun = process.argv.includes('--dry-run');

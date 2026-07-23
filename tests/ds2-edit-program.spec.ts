@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
-dotenv.config({ path: path.resolve(__dirname, '../TODO_MVC/.env') });
 
 const BASE_URL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
 const ADMIN_EMAIL = process.env.DIDAXIS_EMAIL;

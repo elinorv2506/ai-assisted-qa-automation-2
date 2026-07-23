@@ -14,9 +14,7 @@ accumulated test data in Didaxis Studio.
    remove *all* programs, proceed. If the request is ambiguous, list programs
    first (dry run) and ask for confirmation.
 
-2. **Load credentials** from project `.env` files (same as tests):
-   - `.env`
-   - `TODO_MVC/.env`
+2. **Load credentials** from the project root `.env` file (same as tests).
 
    Required variables (at least one auth path):
    - `DIDAXIS_URL` — defaults to `https://test.didaxis.studio`
