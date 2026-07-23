@@ -1,10 +1,12 @@
 import { type Locator, type Page, type Response } from '@playwright/test';
+import { EditProgramModal } from './EditProgramModal';
 import { NewProgramModal } from './NewProgramModal';
 
 const BASE_URL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
 
 export class ProgramsPage {
   readonly newProgramModal: NewProgramModal;
+  readonly editProgramModal: EditProgramModal;
   readonly newProgramButton: Locator;
   readonly heading: Locator;
   readonly subtitle: Locator;
@@ -13,6 +15,7 @@ export class ProgramsPage {
 
   constructor(private readonly page: Page) {
     this.newProgramModal = new NewProgramModal(page);
+    this.editProgramModal = new EditProgramModal(page);
     this.newProgramButton = page.getByRole('button', { name: '+ New Program' });
     this.heading = page.getByRole('heading', { name: 'Programs', level: 2 });
     this.subtitle = page.getByText('Manage academic programs and semesters');
@@ -53,6 +56,23 @@ export class ProgramsPage {
 
   firstProgramNameText(name: string): Locator {
     return this.firstProgramRow().getByText(name, { exact: true });
+  }
+
+  editProgramButton(programName: string): Locator {
+    return this.page.getByRole('button', { name: `Edit ${programName}` });
+  }
+
+  programDescriptionInRow(name: string): Locator {
+    return this.programNameCell(name).getByRole('paragraph').nth(1);
+  }
+
+  programCellParagraphs(name: string): Locator {
+    return this.programNameCell(name).getByRole('paragraph');
+  }
+
+  async openEditProgramModal(programName: string): Promise<void> {
+    await this.editProgramButton(programName).first().click();
+    await this.editProgramModal.dialog.waitFor({ state: 'visible' });
   }
 
   async createProgram(
