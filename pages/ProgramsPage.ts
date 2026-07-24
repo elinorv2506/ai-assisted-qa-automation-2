@@ -54,6 +54,10 @@ export class ProgramsPage {
     return this.programRow(name).getByRole('cell').first();
   }
 
+  programNameInRow(name: string): Locator {
+    return this.programNameCell(name).getByRole('paragraph').first();
+  }
+
   firstProgramNameText(name: string): Locator {
     return this.firstProgramRow().getByText(name, { exact: true });
   }

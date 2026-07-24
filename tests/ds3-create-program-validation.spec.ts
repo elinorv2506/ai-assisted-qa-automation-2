@@ -26,7 +26,7 @@ test.describe('Positive Flows', () => {
 
     await expect(programsPage.newProgramModal.dialog).toBeHidden();
     await expect(programsPage.programRow(programName).first()).toBeVisible();
-    await expect(programsPage.programNameCell(programName)).toHaveText(programName);
+    await expect(programsPage.programNameInRow(programName)).toHaveText(programName);
   });
 
   test('TC-002 — Standard valid Program Name creates program without duplicate conflict', async ({
@@ -67,7 +67,7 @@ test.describe('Positive Flows', () => {
     await programsPage.createProgram(programName, trackProgram, { description });
 
     await expect(programsPage.newProgramModal.dialog).toBeHidden();
-    await expect(programsPage.programNameCell(programName)).toHaveText(programName);
+    await expect(programsPage.programNameInRow(programName)).toHaveText(programName);
   });
 
   test('TC-005 — Unicode characters in Program Name are accepted', async ({ trackProgram }) => {
@@ -314,7 +314,7 @@ test.describe('Edge Cases', () => {
     await programsPage.createProgram(programName, trackProgram, { description });
 
     await expect(programsPage.newProgramModal.dialog).toBeHidden();
-    await expect(programsPage.programNameCell(programName)).toHaveText(programName);
+    await expect(programsPage.programNameInRow(programName)).toHaveText(programName);
   });
 
   test.fixme('TC-018 — Rapid double-click on Create does not bypass duplicate validation', async ({

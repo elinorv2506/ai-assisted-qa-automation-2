@@ -103,6 +103,7 @@ test.describe('Positive Flows', () => {
 
     await programsPage.openNewProgramForm();
     await programsPage.createProgram(programName, trackProgram, { description });
+    await expect(programsPage.programRow(programName)).toHaveCount(1);
     const rowsBefore = await programsPage.programRow(programName).count();
 
     await programsPage.openEditProgramModal(programName);

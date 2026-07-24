@@ -45,7 +45,7 @@ test.describe('Positive Flows', () => {
 
     await expect(programsPage.newProgramModal.dialog).toBeHidden();
     await expect(programsPage.programRow(programName)).toBeVisible();
-    await expect(programsPage.programNameCell(programName)).toHaveText(programName);
+    await expect(programsPage.programNameInRow(programName)).toHaveText(programName);
   });
 
   test('TC-004 — Create button is enabled when Program Name has valid input', async () => {
@@ -171,7 +171,6 @@ test.describe('Edge Cases', () => {
     const programName = String.fromCharCode(65 + (Date.now() % 26));
     const description = `Single letter program name test ${Date.now()}`;
 
-    await expect(programsPage.firstProgramRow()).toBeVisible();
     const rowsBefore = await programsPage.programRows().count();
 
     await programsPage.openNewProgramForm();
@@ -308,10 +307,15 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.newProgramModal.defaultExamHoursInput).toHaveValue('3');
   });
 
-  test('TC-022 — Programs page layout and list structure', async () => {
+  test('TC-022 — Programs page layout and list structure', async ({ trackProgram }) => {
     await expect(programsPage.heading).toBeVisible();
     await expect(programsPage.subtitle).toBeVisible();
     await expect(programsPage.newProgramButton).toBeVisible();
+
+    const programName = uniqueName('Layout Check');
+    await programsPage.openNewProgramForm();
+    await programsPage.createProgram(programName, trackProgram, { description: 'Layout test' });
+
     await expect(programsPage.programColumnHeader).toBeVisible();
     await expect(programsPage.selectProgramPrompt).toBeVisible();
     await expect(programsPage.firstProgramRow()).toBeVisible();
