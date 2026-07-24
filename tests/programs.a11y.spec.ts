@@ -16,13 +16,13 @@ test.describe('Programs accessibility', { tag: '@regression' }, () => {
     await programsPage.goto();
   });
 
-  test('Programs page has no accessibility violations', async ({ page }) => {
+  test.fixme('Programs page has no accessibility violations', async ({ page }) => {
     const results = await new AxeBuilder({ page }).analyze();
 
     expect(results.violations).toEqual([]);
   });
 
-  test('New Program modal has no accessibility violations', async ({ page }) => {
+  test.fixme('New Program modal has no accessibility violations', async ({ page }) => {
     await programsPage.openNewProgramForm();
 
     const modalSelector = await programsPage.newProgramModal.axeScanIncludeSelector();

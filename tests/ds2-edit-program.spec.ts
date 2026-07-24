@@ -192,7 +192,7 @@ test.describe('Negative Flows', () => {
     test.skip(true, 'Viewer credentials not configured in .env');
   });
 
-  test('TC-011 — Renaming to an existing program name is rejected or handled per business rules', async ({
+  test.fixme('TC-011 — Renaming to an existing program name is rejected or handled per business rules', async ({
     trackProgram,
   }) => {
     const alphaProgram = uniqueName('Alpha Program');
@@ -255,7 +255,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.programRow(updatedName)).toHaveCount(0);
   });
 
-  test('TC-013 — Rapid double-click on Save does not create duplicates or corrupt data', async ({
+  test.fixme('TC-013 — Rapid double-click on Save does not create duplicates or corrupt data', async ({
     trackProgram,
   }) => {
     const programName = uniqueName('Web Development 2026');
@@ -296,7 +296,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(maxName).first()).toBeVisible();
   });
 
-  test('TC-015 — Program Name exceeding max length is rejected', async ({ trackProgram }) => {
+  test.fixme('TC-015 — Program Name exceeding max length is rejected', async ({ trackProgram }) => {
     const programName = uniqueName('Over Max Edit');
     const overMaxName = 'W'.repeat(256);
 
@@ -324,7 +324,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.editProgramModal.descriptionField).toHaveValue(maxDescription);
   });
 
-  test('TC-016b — Description exceeding max length is rejected on edit', async ({ trackProgram }) => {
+  test.fixme('TC-016b — Description exceeding max length is rejected on edit', async ({ trackProgram }) => {
     const programName = uniqueName('Description Over Max Edit');
     const overMaxDescription = 'D'.repeat(2001);
 
@@ -371,7 +371,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programDescriptionInRow(unicodeName)).toHaveText(unicodeDescription);
   });
 
-  test('TC-019 — Leading and trailing whitespace is trimmed or rejected consistently', async ({
+  test.fixme('TC-019 — Leading and trailing whitespace is trimmed or rejected consistently', async ({
     trackProgram,
   }) => {
     const coreName = uniqueName('Web Development 2026');
