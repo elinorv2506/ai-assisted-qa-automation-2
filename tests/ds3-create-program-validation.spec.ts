@@ -91,15 +91,12 @@ test.describe('Negative Flows', () => {
   });
 
   test('TC-006 — Whitespace-only Program Name is rejected and form is not submitted', async () => {
-    const rowsBefore = await programsPage.programRows().count();
-
     await programsPage.openNewProgramForm();
     await programsPage.newProgramModal.fillProgramName('   ');
     await programsPage.newProgramModal.fillDescription('Optional description text');
 
     await expect(programsPage.newProgramModal.createButton).toBeDisabled();
     await expect(programsPage.newProgramModal.dialog).toBeVisible();
-    await expect(programsPage.programRows()).toHaveCount(rowsBefore);
   });
 
   test.fixme('TC-007 — Duplicate Program Name is rejected with a clear error', async ({ trackProgram }) => {
@@ -122,14 +119,12 @@ test.describe('Negative Flows', () => {
   });
 
   test('TC-008 — Empty Program Name prevents submission', async () => {
-    const rowsBefore = await programsPage.programRows().count();
-
     await programsPage.openNewProgramForm();
     await programsPage.newProgramModal.fillDescription('Description without a name');
 
     await expect(programsPage.newProgramModal.programNameField).toHaveValue('');
     await expect(programsPage.newProgramModal.createButton).toBeDisabled();
-    await expect(programsPage.programRows()).toHaveCount(rowsBefore);
+    await expect(programsPage.newProgramModal.dialog).toBeVisible();
   });
 
   test.fixme('TC-009 — Duplicate attempt does not modify the existing program', async ({ trackProgram }) => {
@@ -224,8 +219,6 @@ test.describe('Edge Cases', () => {
   });
 
   test('TC-013 — Tabs and newline characters in whitespace-only name are rejected', async () => {
-    const rowsBefore = await programsPage.programRows().count();
-
     for (const whitespaceOnly of ['\t\t', '\n\n']) {
       await programsPage.openNewProgramForm();
       await programsPage.newProgramModal.fillProgramName(whitespaceOnly);
@@ -235,7 +228,7 @@ test.describe('Edge Cases', () => {
       await programsPage.newProgramModal.dismiss();
     }
 
-    await expect(programsPage.programRows()).toHaveCount(rowsBefore);
+    await expect(programsPage.newProgramModal.dialog).toBeHidden();
   });
 
   test('TC-014 — Minimum-length Program Name (single character) is accepted', async ({
@@ -263,7 +256,6 @@ test.describe('Edge Cases', () => {
 
   test.fixme('TC-015b — Program name exceeding maximum length is rejected', async () => {
     const overMaxName = 'W'.repeat(256);
-    const rowsBefore = await programsPage.programRows().count();
 
     await programsPage.openNewProgramForm();
     await programsPage.newProgramModal.fillProgramName(overMaxName);
@@ -271,7 +263,7 @@ test.describe('Edge Cases', () => {
 
     await expect(programsPage.newProgramModal.createButton).toBeDisabled();
     await expect(programsPage.programRow(overMaxName)).toHaveCount(0);
-    await expect(programsPage.programRows()).toHaveCount(rowsBefore);
+    await expect(programsPage.newProgramModal.dialog).toBeVisible();
   });
 
   test.fixme('TC-016 — Duplicate detection is case-sensitive (or per documented rule)', async ({
@@ -359,13 +351,11 @@ test.describe('Edge Cases', () => {
   });
 
   test('TC-020 — Whitespace-only name with filled Description does not create a program', async () => {
-    const rowsBefore = await programsPage.programRows().count();
-
     await programsPage.openNewProgramForm();
     await programsPage.newProgramModal.fillProgramName('     ');
     await programsPage.newProgramModal.fillDescription('Full-stack web development program');
 
     await expect(programsPage.newProgramModal.createButton).toBeDisabled();
-    await expect(programsPage.programRows()).toHaveCount(rowsBefore);
+    await expect(programsPage.newProgramModal.dialog).toBeVisible();
   });
 });

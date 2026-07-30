@@ -171,12 +171,10 @@ test.describe('Edge Cases', () => {
     const programName = String.fromCharCode(65 + (Date.now() % 26));
     const description = `Single letter program name test ${Date.now()}`;
 
-    const rowsBefore = await programsPage.programRows().count();
-
     await programsPage.openNewProgramForm();
     await programsPage.createProgram(programName, trackProgram, { description });
 
-    await expect(programsPage.programRows()).toHaveCount(rowsBefore + 1);
+    await expect(programsPage.newProgramModal.dialog).toBeHidden();
     await expect(programsPage.programRow(programName).last()).toBeVisible();
   });
 

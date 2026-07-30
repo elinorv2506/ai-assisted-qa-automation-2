@@ -24,9 +24,40 @@ export class ProgramsPage {
   }
 
   async goto(): Promise<void> {
+    const programsLoaded = this.page.waitForResponse(
+      (res) =>
+        res.url().includes('/api/programs') &&
+        res.request().method() === 'GET' &&
+        res.ok(),
+    );
     await this.page.goto(`${BASE_URL}/programs`);
     await this.newProgramButton.waitFor({ state: 'visible' });
     await this.heading.waitFor({ state: 'visible' });
+    await this.waitForProgramList(await programsLoaded);
+  }
+
+  private async waitForProgramList(response: Response): Promise<void> {
+    let expectedCount = 0;
+    try {
+      const body = await response.json();
+      if (Array.isArray(body?.data)) {
+        expectedCount = body.data.length;
+      }
+    } catch {
+      return;
+    }
+
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      if ((await this.programRows().count()) === expectedCount) {
+        return;
+      }
+      await this.page.waitForTimeout(100);
+    }
+
+    if (expectedCount > 0) {
+      await this.programRows().first().waitFor({ state: 'visible', timeout: 5_000 });
+    }
   }
 
   async openNewProgramForm(): Promise<void> {

@@ -1,0 +1,39 @@
+---
+description: Use GitHub CLI (gh) for GitHub Actions and repo checks
+alwaysApply: true
+---
+
+# GitHub CLI for Actions and CI
+
+When asked to check GitHub Actions runs, workflow status, CI failures, PR checks, or run logs, use the **GitHub CLI (`gh`)** — not the REST API or web fetch.
+
+## Commands
+
+```powershell
+gh run list --limit N
+gh run view <run-id>
+gh run view <run-id> --log-failed
+gh run view --job=<job-id>
+gh pr checks
+gh pr view <number> --json statusCheckRollup
+```
+
+## Windows PATH fallback
+
+On this machine, `gh` is installed at `C:\Program Files\GitHub CLI\gh.exe`. Cursor agent shells may not have it on PATH. If `gh` is not recognized:
+
+```powershell
+& "C:\Program Files\GitHub CLI\gh.exe" run list --limit 2
+```
+
+Prefer plain `gh` when it works; use the full path only when `Get-Command gh` fails.
+
+## Repo context
+
+- Remote: `https://github.com/elinorv2506/ai-assisted-qa-automation-2`
+- Workflow: `.github/workflows/e2e.yml` (E2E Tests)
+
+## Do not
+
+- Use `WebFetch` or unauthenticated GitHub API calls when `gh` can answer the question
+- Assume `gh` is missing without trying the full Windows path first
