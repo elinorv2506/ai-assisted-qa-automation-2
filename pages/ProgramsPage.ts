@@ -1,4 +1,5 @@
 import { type Locator, type Page, type Response } from '@playwright/test';
+import { DeleteProgramModal } from './DeleteProgramModal';
 import { EditProgramModal } from './EditProgramModal';
 import { NewProgramModal } from './NewProgramModal';
 
@@ -7,20 +8,24 @@ const BASE_URL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
 export class ProgramsPage {
   readonly newProgramModal: NewProgramModal;
   readonly editProgramModal: EditProgramModal;
+  readonly deleteProgramModal: DeleteProgramModal;
   readonly newProgramButton: Locator;
   readonly heading: Locator;
   readonly subtitle: Locator;
   readonly programColumnHeader: Locator;
   readonly selectProgramPrompt: Locator;
+  readonly emptyStateMessage: Locator;
 
   constructor(private readonly page: Page) {
     this.newProgramModal = new NewProgramModal(page);
     this.editProgramModal = new EditProgramModal(page);
+    this.deleteProgramModal = new DeleteProgramModal(page);
     this.newProgramButton = page.getByRole('button', { name: '+ New Program' });
     this.heading = page.getByRole('heading', { name: 'Programs', level: 2 });
     this.subtitle = page.getByText('Manage academic programs and semesters');
     this.programColumnHeader = page.getByRole('columnheader', { name: 'Program' });
     this.selectProgramPrompt = page.getByText('Select a program to manage semesters');
+    this.emptyStateMessage = page.getByText(/no programs have been created|no programs yet|no programs found/i);
   }
 
   async goto(): Promise<void> {
@@ -95,6 +100,39 @@ export class ProgramsPage {
 
   editProgramButton(programName: string): Locator {
     return this.page.getByRole('button', { name: `Edit ${programName}` });
+  }
+
+  deleteProgramButton(programName: string): Locator {
+    return this.page.getByRole('button', { name: `Delete ${programName}` });
+  }
+
+  async clickDeleteProgram(programName: string): Promise<void> {
+    await this.deleteProgramButton(programName).first().click();
+  }
+
+  async deleteWithConfirmation(programName: string): Promise<string> {
+    return this.deleteProgramModal.withDialogAction(
+      () => this.clickDeleteProgram(programName),
+      'accept',
+    );
+  }
+
+  async cancelDelete(programName: string): Promise<string> {
+    return this.deleteProgramModal.withDialogAction(
+      () => this.clickDeleteProgram(programName),
+      'dismiss',
+    );
+  }
+
+  async openDeleteConfirmation(programName: string): Promise<string> {
+    return this.cancelDelete(programName);
+  }
+
+  async doubleClickDeleteIcon(programName: string): Promise<string> {
+    return this.deleteProgramModal.withDialogAction(
+      () => this.deleteProgramButton(programName).first().dblclick(),
+      'dismiss',
+    );
   }
 
   programDescriptionInRow(name: string): Locator {
