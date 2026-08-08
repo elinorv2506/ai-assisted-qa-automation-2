@@ -17,81 +17,126 @@ Apply this skill when you:
 
 If the test navigates to or interacts with UI, it needs an axe scan.
 
-## Required pattern
+## Required axe pattern
 
 1. Import `AxeBuilder` from `@axe-core/playwright`.
-2. Navigate to the target UI and wait for it to be ready (use POM methods + web-first `expect` visibility checks first).
-3. Run the scan:
+2. Navigate through **existing POMs**; wait for target UI with web-first `expect` visibility checks.
+3. Run the scan with WCAG tags:
 
 ```typescript
-import AxeBuilder from "@axe-core/playwright";
-import { test, expect } from "@playwright/test";
+import AxeBuilder from '@axe-core/playwright';
+import { test, expect } from '@playwright/test';
+import { ProgramsPage } from '../pages/ProgramsPage';
 
-const results = await new AxeBuilder({ page }).analyze();
+test('Programs page passes WCAG 2 A/AA axe scan', { tag: '@a11y-axe-programs-page' }, async ({ page }) => {
+  const programsPage = new ProgramsPage(page);
+  await programsPage.goto();
+  await expect(programsPage.heading).toBeVisible();
 
-await expect(results.violations).toEqual([]);
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa'])
+    .analyze();
+
+  await expect(results.violations).toEqual([]);
+});
 ```
 
-4. Use web-first `expect` on `results.violations` — never use bare `assert`, `if (violations.length)`, or manual length checks.
+4. Assert with web-first `expect(results.violations).toEqual([])` — never bare `assert`, manual length checks, or `if (violations.length)`.
 
 ## Scoping
 
 | Target | Scope |
 |--------|-------|
 | Full page | No `.include()` — scan the whole page |
-| Modal, drawer, panel, or component | Chain `.include(selector)` to limit the scan |
+| Modal, drawer, panel, or component | `.include(selector)` from a role-based POM helper |
 
-For component-level scans, derive the include selector from a role-based POM locator (see `NewProgramModal.axeScanIncludeSelector()`). Do not use brittle CSS selectors unrelated to the component under test.
+Use `.include()` / `.exclude()` **only** when a third-party widget adds noise unrelated to the feature under test — **comment why** on the same line.
 
-```typescript
-const results = await new AxeBuilder({ page })
-  .include(await modal.axeScanIncludeSelector())
-  .analyze();
-
-await expect(results.violations).toEqual([]);
-```
-
-## disableRules — strict policy
-
-`.disableRules()` is allowed **only** when a rule produces a known false positive that cannot be fixed in the test or app right now.
-
-Rules:
-
-- **Always** add an inline comment on the same line or the line above explaining **why** the rule is disabled and what tracks fixing it (ticket, upstream issue, or environmental limitation).
-- **Never** use `.disableRules()` to silence a real accessibility failure.
-- **Never** disable rules preemptively "just in case."
-- Prefer fixing the violation or scoping with `.include()` before disabling anything.
+For component scans, derive the include selector from a POM helper (see `NewProgramModal.axeScanIncludeSelector()`). Do not use brittle CSS unrelated to the component.
 
 ```typescript
-// color-contrast: modal overlay uses design-system tokens with insufficient contrast — tracked in PROJ-1234
-.disableRules(["color-contrast"])
+test('New Program modal passes WCAG 2 A/AA axe scan', { tag: '@a11y-axe-new-program-modal' }, async ({ page }) => {
+  const programsPage = new ProgramsPage(page);
+  await programsPage.goto();
+  await programsPage.openNewProgramForm();
+
+  const modalSelector = await programsPage.newProgramModal.axeScanIncludeSelector();
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa'])
+    .include(modalSelector)
+    .analyze();
+
+  await expect(results.violations).toEqual([]);
+});
 ```
 
-If you cannot justify the disable with a specific reason, do not disable the rule.
+## Keyboard test (axe cannot verify focus order)
+
+Add a separate test for keyboard interaction axe does not cover. **One `{ tag: '@a11y-*' }` per test.** No inline locators — use POM fields only.
+
+Primary control on the Programs page: `programsPage.newProgramButton` (`+ New Program`).
+
+```typescript
+test('Tab and Enter on + New Program opens dialog', { tag: '@a11y-keyboard-new-program' }, async ({ page }) => {
+  const programsPage = new ProgramsPage(page);
+  await programsPage.goto();
+  await expect(programsPage.newProgramButton).toBeVisible();
+
+  await page.keyboard.press('Tab');
+  // Repeat Tab until primary control is focused, or tab from a known landmark
+  let focused = false;
+  for (let i = 0; i < 30 && !focused; i++) {
+    if (await programsPage.newProgramButton.evaluate((el) => el === document.activeElement)) {
+      focused = true;
+      break;
+    }
+    await page.keyboard.press('Tab');
+  }
+
+  await expect(programsPage.newProgramButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(programsPage.newProgramModal.dialog).toBeVisible();
+});
+```
+
+If tab order is unstable, note a POM gap (e.g. `tabToNewProgramButton()`) in the handoff — do not add inline locators to work around it.
+
+## Violations — report and stop
+
+If `results.violations` is non-empty:
+
+1. **Stop** — do not weaken the test to pass.
+2. **Never** use `.disableRules()` to make the scan green.
+3. Report each violation: `id`, `impact`, affected nodes, and helpUrl from the axe result.
+4. Mark the test `test.fixme('…', …)` with the violation summary, or hand off to **bug-reporter** for a Jira ticket after human confirmation.
+5. Do not merge a spec that disables rules or deletes the assertion to hide real failures.
+
+**Known blocked state in this repo:** `tests/programs.a11y.spec.ts` and `ds5-program-list-display.spec.ts` TC-A11Y are `test.fixme` pending real app fixes — do not re-enable with `.disableRules()`.
 
 ## File placement
 
-- Dedicated a11y coverage: `tests/<feature>.a11y.spec.ts` (see `tests/programs.a11y.spec.ts`)
-- Or add an axe assertion at the end of an existing functional test when it already reaches the target UI state
+- Dedicated coverage: `tests/<feature>.a11y.spec.ts` (see `tests/programs.a11y.spec.ts`)
+- Or append an axe assertion to a functional test that already reaches the target UI state
 
-Keep axe scans in test files, not in Page Objects. POMs may expose helpers like `axeScanIncludeSelector()`; assertions stay in specs.
+Keep axe scans and keyboard steps in test files, not Page Objects. POMs may expose helpers like `axeScanIncludeSelector()`; assertions stay in specs.
 
 ## Generating tests checklist
 
-- [ ] Target UI is loaded and visible before scanning
-- [ ] `AxeBuilder({ page }).analyze()` is called
-- [ ] Component-level scans use `.include()`
-- [ ] `await expect(results.violations).toEqual([])` asserts zero violations
-- [ ] Any `.disableRules()` has a commented reason — none added without justification
+- [ ] Target UI loaded via POM before scanning
+- [ ] `.withTags(['wcag2a', 'wcag2aa'])` on every axe scan
+- [ ] `await expect(results.violations).toEqual([])`
+- [ ] Component scans use `.include()` from POM; `.exclude()` only with comment
+- [ ] Separate keyboard test with `{ tag: '@a11y-*' }` where focus/activation matters
+- [ ] No inline locators in a11y specs
+- [ ] No `.disableRules()` — violations reported and test fixme'd until app is fixed
 
 ## Reviewing tests checklist
 
-When reviewing any UI test, verify:
+- [ ] Axe scan covers every new page or component
+- [ ] Scan runs in the state under test (modal open, list populated, etc.)
+- [ ] WCAG 2 A/AA tags present
+- [ ] Keyboard coverage for primary interactive controls axe cannot test
+- [ ] No `.disableRules()` used to silence failures
+- [ ] One tag per a11y test
 
-- [ ] An axe scan covers every new page or component introduced by the change
-- [ ] Scans run after the UI is in the state under test (modal open, form filled, etc.)
-- [ ] Violations are asserted with web-first `expect`, not manual checks
-- [ ] No `.disableRules()` without a documented reason
-- [ ] No missing a11y coverage because the user didn't say "accessibility"
-
-If any item fails, add or fix the a11y check before considering the test complete.
+If any item fails, add or fix the a11y check before considering the work complete.

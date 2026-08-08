@@ -1,7 +1,7 @@
 ---
 name: triage
 description: Diagnoses a red CI run against the repo and classifies the cause. Use whenever a build fails.
-model: inherit
+model: composer-2.5-fast
 readonly: true
 ---
 
@@ -51,9 +51,20 @@ Do not post PR comments, push branches, merge, or apply fixes unless the parent 
    **Likely app bug** when:
    - Assertion matches feature AC but UI/API behavior differs
    - Element exists but wrong content, state, or timing users would see
+   - Axe WCAG scan reports real violations (`expect(results.violations).toEqual([])` failed)
    - Reproducible locally with the same steps (optional: `npx playwright test <spec> -g "<title>" --workers=1`)
 
    **Likely test issue** when:
+   - `waitForTimeout`, manual `locator.waitFor()`, or snapshot `await locator.isVisible()` instead of web-first `expect(locator).toBeVisible()`
+   - CSS/XPath locators; `.first()` where `.filter({ hasText })` should disambiguate; missing `getByRole`/`getByLabel` priority
+   - Invented error/empty-state strings in network-mocked tests instead of copy verified on live UI
+   - `page.route` mocks the endpoint under test, or broad `**/*` routes intercept unrelated traffic
+   - A11y test uses `.disableRules()` to silence axe violations instead of reporting an app defect
+   - Missing `.withTags(['wcag2a','wcag2aa'])` or keyboard coverage documented in `a11y-checks` skill
+   - Spec overrides `retries > 2`, sets `workers: 1`, or omits `page.clock.install()` when asserting on `Date.now()` / relative timestamps
+   - Shared static program names or missing `trackProgram` causing parallel isolation failures
+   - Timeout mock conflated with empty-list mock (fake empty state on `@network-timeout-list`)
+   - `expect.soft` on a single critical AC gate masking the real failure
    - Locator/timeout/wait mismatch; flaky selector; missing `trackProgram` / cleanup
    - Expected value contradicts `features/*.feature`
    - Environment/setup (secrets, network) — note separately
