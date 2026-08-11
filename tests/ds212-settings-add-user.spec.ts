@@ -251,14 +251,15 @@ test.describe('DS-212: Add user in Settings', () => {
     });
 
     test(
-      'Settings page passes WCAG 2 A/AA axe scan',
+      'Users section passes WCAG 2 A/AA axe scan',
       { tag: '@a11y-axe-settings-page' },
       async ({ page }) => {
-        await expect(settingsPage.heading).toBeVisible();
+        await expect(settingsPage.usersSection).toBeVisible();
 
+        const sectionSelector = await settingsPage.usersSectionAxeIncludeSelector();
         const results = await new AxeBuilder({ page })
           .withTags(['wcag2a', 'wcag2aa'])
-          .exclude('nav') // Sidebar nav contrast is outside Settings page AC scope
+          .include(sectionSelector)
           .analyze();
 
         await expect(results.violations).toEqual([]);

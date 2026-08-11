@@ -8,6 +8,7 @@ export class SettingsPage {
   readonly heading: Locator;
   readonly settingsNavButton: Locator;
   readonly usersHeading: Locator;
+  readonly usersSection: Locator;
   readonly addUserButton: Locator;
   readonly usersTable: Locator;
   readonly nameColumnHeader: Locator;
@@ -23,6 +24,9 @@ export class SettingsPage {
     this.heading = page.getByRole('heading', { name: 'Settings' });
     this.settingsNavButton = page.getByRole('button', { name: 'Settings' });
     this.usersHeading = page.getByRole('heading', { name: 'Users', level: 4 });
+    this.usersSection = page.locator('[class*="mantine-Card-root"]').filter({
+      has: this.usersHeading,
+    });
     this.addUserButton = page.getByRole('button', { name: 'Add User' });
     // Users table has Active column; API Tokens table has Last Used / Created instead.
     this.usersTable = page.getByRole('table').filter({
@@ -124,5 +128,19 @@ export class SettingsPage {
     if (body?.data?.id) {
       trackUser(body.data.id);
     }
+  }
+
+  async usersSectionAxeIncludeSelector(): Promise<string> {
+    await this.usersSection.waitFor({ state: 'visible' });
+    return this.usersSection.evaluate((element) => {
+      if (element.id) {
+        return `#${CSS.escape(element.id)}`;
+      }
+      const cardRoot = element.closest('[class*="mantine-Card-root"]') ?? element;
+      if (cardRoot.id) {
+        return `#${CSS.escape(cardRoot.id)}`;
+      }
+      throw new Error('Users section card lacks id for axe include scoping');
+    });
   }
 }
