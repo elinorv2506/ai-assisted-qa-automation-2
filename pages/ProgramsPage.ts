@@ -15,6 +15,8 @@ export class ProgramsPage {
   readonly programColumnHeader: Locator;
   readonly selectProgramPrompt: Locator;
   readonly emptyStateMessage: Locator;
+  readonly emptyStateCreateButton: Locator;
+  readonly listLoadError: Locator;
 
   constructor(private readonly page: Page) {
     this.newProgramModal = new NewProgramModal(page);
@@ -26,6 +28,10 @@ export class ProgramsPage {
     this.programColumnHeader = page.getByRole('columnheader', { name: 'Program' });
     this.selectProgramPrompt = page.getByText('Select a program to manage semesters');
     this.emptyStateMessage = page.getByText(/no programs have been created|no programs yet|no programs found/i);
+    this.emptyStateCreateButton = page.getByRole('button', { name: 'Create Program' });
+    this.listLoadError = page.getByText(
+      /failed to load|unable to load|error loading|something went wrong|retry/i,
+    );
   }
 
   async goto(): Promise<void> {
@@ -39,6 +45,18 @@ export class ProgramsPage {
     await this.newProgramButton.waitFor({ state: 'visible' });
     await this.heading.waitFor({ state: 'visible' });
     await this.waitForProgramList(await programsLoaded);
+  }
+
+  /** Navigate when GET /api/programs is expected to fail (4xx/5xx/abort). Does not wait for res.ok(). */
+  async gotoExpectingListFailure(): Promise<void> {
+    await this.page.goto(`${BASE_URL}/programs`);
+    await this.heading.waitFor({ state: 'visible' });
+    await this.newProgramButton.waitFor({ state: 'visible' });
+  }
+
+  /** Navigate when the page may fail to render a shell (e.g. malformed JSON crash). */
+  async gotoAllowingRenderFailure(): Promise<void> {
+    await this.page.goto(`${BASE_URL}/programs`, { waitUntil: 'domcontentloaded' });
   }
 
   private async waitForProgramList(response: Response): Promise<void> {
