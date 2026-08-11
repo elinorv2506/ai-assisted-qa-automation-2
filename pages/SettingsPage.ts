@@ -133,14 +133,9 @@ export class SettingsPage {
   async usersSectionAxeIncludeSelector(): Promise<string> {
     await this.usersSection.waitFor({ state: 'visible' });
     return this.usersSection.evaluate((element) => {
-      if (element.id) {
-        return `#${CSS.escape(element.id)}`;
-      }
-      const cardRoot = element.closest('[class*="mantine-Card-root"]') ?? element;
-      if (cardRoot.id) {
-        return `#${CSS.escape(cardRoot.id)}`;
-      }
-      throw new Error('Users section card lacks id for axe include scoping');
+      const attr = 'data-playwright-axe-users-section';
+      element.setAttribute(attr, 'true');
+      return `[${attr}="true"]`;
     });
   }
 }
