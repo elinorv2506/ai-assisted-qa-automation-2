@@ -24,11 +24,14 @@ export class SettingsPage {
     this.settingsNavButton = page.getByRole('button', { name: 'Settings' });
     this.usersHeading = page.getByRole('heading', { name: 'Users', level: 4 });
     this.addUserButton = page.getByRole('button', { name: 'Add User' });
-    this.usersTable = page.getByRole('table');
-    this.nameColumnHeader = page.getByRole('columnheader', { name: 'Name' });
-    this.emailColumnHeader = page.getByRole('columnheader', { name: 'Email' });
-    this.roleColumnHeader = page.getByRole('columnheader', { name: 'Role' });
-    this.activeColumnHeader = page.getByRole('columnheader', { name: 'Active' });
+    // Users table has Active column; API Tokens table has Last Used / Created instead.
+    this.usersTable = page.getByRole('table').filter({
+      has: page.getByRole('columnheader', { name: 'Active' }),
+    });
+    this.nameColumnHeader = this.usersTable.getByRole('columnheader', { name: 'Name' });
+    this.emailColumnHeader = this.usersTable.getByRole('columnheader', { name: 'Email' });
+    this.roleColumnHeader = this.usersTable.getByRole('columnheader', { name: 'Role' });
+    this.activeColumnHeader = this.usersTable.getByRole('columnheader', { name: 'Active' });
     this.calendarViewHeading = page.getByRole('heading', { name: 'Calendar View', level: 4 });
     this.accountHeading = page.getByRole('heading', { name: 'Account', level: 4 });
     this.validationError = page.getByText(
