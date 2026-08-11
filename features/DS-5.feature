@@ -13,13 +13,14 @@ Feature: Program list filtering and display
     And the list shows Program Name "Web Development 2026" and Description "Full-stack web development program"
     And the list shows Program Name "Cloud Engineering 2026" and Description "AWS and Azure fundamentals"
 
-  @TC-002 @AC-EmptyState
+  @TC-002 @AC-EmptyState @network-empty-list
   Scenario: Empty state when no programs exist
     Given I am logged in as admin
-    And no programs exist
+    And the programs list API returns an empty collection
     When I navigate to the Programs page
-    Then I see a message indicating no programs have been created
-    And I see a prompt to create the first program
+    Then I see "No programs yet. Create your first program to get started."
+    And I see a "Create Program" prompt
+    And I see the "+ New Program" action
 
   @TC-003
   Scenario: Create action is available on populated Programs page
@@ -29,10 +30,10 @@ Feature: Program list filtering and display
     Then I see the program list
     And I see the "+ New Program" action
 
-  @TC-004
+  @TC-004 @network-empty-list
   Scenario: Empty state create prompt opens program creation form
     Given I am logged in as admin
-    And no programs exist
+    And the programs list API returns an empty collection
     And I am on the Programs page
     When I click "+ New Program"
     Then I see the program creation form with fields: Program Name, Description
@@ -56,10 +57,10 @@ Feature: Program list filtering and display
 
   # Negative
 
-  @TC-007
+  @TC-007 @network-empty-list
   Scenario: No program rows when list is empty
     Given I am logged in as admin
-    And no programs exist
+    And the programs list API returns an empty collection
     When I navigate to the Programs page
     Then I do not see any program rows
     And I do not see edit icons or delete icons without a program row
@@ -98,14 +99,54 @@ Feature: Program list filtering and display
     Then I do not see the admin program list with edit and delete actions
     Or I am redirected or shown an access denied message
 
-  @TC-012
+  @TC-012 @network-500-list
   Scenario: Load failure is not shown as successful empty state
     Given I am logged in as admin
-    And programs exist in the system
-    And the programs list API request fails
+    And the programs list API returns HTTP 500
     When I navigate to the Programs page
-    Then I do not see a success empty state claiming no programs have been created
-    And I see an error or retry indication
+    Then I do not see "No programs yet. Create your first program to get started."
+    And the Programs heading remains visible
+
+  @TC-025 @network-timeout-list
+  Scenario: List timeout is not shown as successful empty state
+    Given I am logged in as admin
+    And the programs list API request times out
+    When I navigate to the Programs page
+    Then I do not see "No programs yet. Create your first program to get started."
+    And the Programs heading remains visible
+
+  @TC-026 @network-malformed-list
+  Scenario: Malformed list payload does not crash the Programs shell
+    Given I am logged in as admin
+    And the programs list API returns invalid JSON
+    When I navigate to the Programs page
+    Then the Programs heading remains visible
+    And I still see the "+ New Program" action
+
+  @TC-027 @network-401-list
+  Scenario: Unauthorized list response is not shown as a genuine empty list
+    Given I am logged in as admin
+    And the programs list API returns HTTP 401
+    When I navigate to the Programs page
+    Then I do not see "No programs yet. Create your first program to get started."
+    And I am shown an auth error or login prompt
+
+  # Accessibility
+
+  @TC-028 @a11y-axe-programs-page
+  Scenario: Populated Programs page passes WCAG 2 A/AA
+    Given I am logged in as admin
+    And a program exists in the list
+    When I scan the Programs page for WCAG 2 A and AA violations
+    Then there are no axe violations
+
+  @TC-029 @a11y-keyboard-new-program
+  Scenario: Keyboard Tab and Enter open the New Program dialog
+    Given I am logged in as admin
+    And the programs list API returns an empty collection
+    When I Tab to "+ New Program"
+    And I press Enter
+    Then the New Program dialog is visible
 
   # Edge cases
 
@@ -219,16 +260,19 @@ Feature: Program list filtering and display
 
   # Ambiguities and gaps
   # - "Filtering" in feature title vs ACs — ACs only cover display and empty state; no search, filter, or sort controls specified
-  # - Exact empty-state copy — message and prompt text not defined; "+ New Program" assumed to satisfy create prompt
+  # - Live empty-state copy (2026-08-11): "No programs yet. Create your first program to get started." plus a "Create Program" button; "+ New Program" remains
+  # - Shared tenant has hundreds of leftover programs — empty-state ACs must use GET /api/programs mock { data: [] }, not bulk delete
+  # - GET 500, timeout, and 401 currently render the same empty-state copy (no error/retry/login) — TC-012/025/027 document the AC; treat as app bugs if they fail
+  # - Malformed list JSON currently whitescreens (heading and + New Program missing) — TC-026
   # - List structure — table vs cards, column headers, row actions (edit/delete) not in AC
   # - Sort order — alphabetical, created date, or manual not defined
   # - Pagination / virtual scroll — threshold for paginated list not specified
-  # - Non-admin access — admin-only restriction implied by DS-1 but not explicit in these ACs
+  # - Non-admin access — admin-only restriction implied by DS-1 but not explicit in these ACs; instructor credentials not configured
   # - Loading state — no AC for skeleton/spinner while programs load
   # - Persistence — AC does not require refresh verification; TC-005 recommended follow-up
   # - Max length / truncation UX — display rules for long Program Name and Description not specified
-  # - Accessibility — screen reader labels for list, empty state, and "+ New Program" not mentioned
+  # - Accessibility — axe + keyboard added as TC-028/029; known violations may remain (see programs.a11y.spec.ts)
   # - Internationalization — RTL and locale-specific empty-state strings not specified
   # - Relationship to create/edit/delete — list updates after CRUD implied by DS-1–DS-4 but not in these ACs
   # - Duplicate Program Names — DS-3 enforces uniqueness on create; duplicate display out of scope
-  # - Network resilience — retry behavior and offline handling not in AC
+  # - TC-023 (empty after last delete) cannot be isolated on the shared tenant without deleting other testers' data
