@@ -42,8 +42,9 @@ async function resolveBearerToken(request: APIRequestContext): Promise<string | 
 }
 
 type TrackProgram = (uuid: string) => void;
+type TrackUser = (id: string) => void;
 
-export const test = base.extend<{ trackProgram: TrackProgram }>({
+export const test = base.extend<{ trackProgram: TrackProgram; trackUser: TrackUser }>({
   trackProgram: async ({}, use, testInfo) => {
     const programIds: string[] = [];
 
@@ -79,6 +80,49 @@ export const test = base.extend<{ trackProgram: TrackProgram }>({
           );
         } else {
           console.log(`[cleanup] ${testInfo.title}: deleted program ${id}`);
+        }
+      }
+    } finally {
+      await request.dispose();
+    }
+  },
+
+  trackUser: async ({}, use, testInfo) => {
+    const userIds: string[] = [];
+
+    const trackUser: TrackUser = (id) => {
+      if (id && !userIds.includes(id)) {
+        userIds.push(id);
+      }
+    };
+
+    await use(trackUser);
+
+    if (userIds.length === 0) {
+      return;
+    }
+
+    const request = await base.request.newContext({ baseURL: BASE_URL });
+    try {
+      const token = await resolveBearerToken(request);
+      if (!token) {
+        console.warn(
+          `[cleanup] ${testInfo.title}: no API token; skipped deactivating ${userIds.length} user(s)`,
+        );
+        return;
+      }
+
+      for (const id of userIds) {
+        const res = await request.patch(`/users/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          data: { is_active: false },
+        });
+        if (!res.ok()) {
+          console.warn(
+            `[cleanup] ${testInfo.title}: failed to deactivate user ${id} (${res.status()})`,
+          );
+        } else {
+          console.log(`[cleanup] ${testInfo.title}: deactivated user ${id}`);
         }
       }
     } finally {
