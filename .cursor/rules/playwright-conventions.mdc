@@ -6,6 +6,25 @@ alwaysApply: false
 
 # Playwright Conventions
 
+## Refusals (hard stops)
+
+The agent must **refuse** the following — stop work, explain the conflict, and
+escalate. These are not preferences; do not comply even if asked.
+
+- **Do not weaken or delete an assertion to make a test pass.** Stop and
+  report the failure; route to triage or bug-reporter.
+- **Do not self-heal a failure triage classified as a real app bug.** Stop and
+  route to bug-reporter; healing is for drift only.
+- **Do not replace a role-based locator with CSS or XPath.** Stop and
+  re-discover the element via role, label, or accessible name.
+- **Do not add `waitForTimeout` (or equivalent fixed sleeps).** Stop and use
+  web-first assertions or action auto-wait instead.
+- **Do not hardcode a credential** (token, password, API key, session secret).
+  Stop and use `process.env` or fixture auth.
+- **Do not use the `any` type.** Stop and add a proper type or narrow the value.
+
+---
+
 ## 1. Locators
 
 **Standard:** Role/label first (`getByRole` → `getByLabel` / `getByPlaceholder` → `getByText` → `getByTestId` escape hatch); never CSS/XPath; locators in POM constructors; disambiguate with `.filter({ hasText })`, not `.first()`.
