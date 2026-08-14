@@ -21,7 +21,7 @@ export class ProgramsPage {
     this.editProgramModal = new EditProgramModal(page);
     this.deleteProgramModal = new DeleteProgramModal(page);
     this.newProgramButton = page.getByRole('button', { name: '+ New Program' });
-    this.heading = page.getByRole('heading', { name: 'Programs', level: 2 });
+    this.heading = page.getByRole('heading', { name: 'Programs', level: 1 });
     this.subtitle = page.getByText('Manage academic programs and semesters');
     this.programColumnHeader = page.getByRole('columnheader', { name: 'Program' });
     this.selectProgramPrompt = page.getByText('Select a program to manage semesters');
