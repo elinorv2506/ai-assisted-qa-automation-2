@@ -6,6 +6,11 @@
         "command": "node .cursor/hooks/generation-gate.mjs",
         "matcher": "tests/",
         "failClosed": true
+      },
+      {
+        "command": "node .cursor/hooks/assertion-guard.mjs",
+        "matcher": "tests/",
+        "failClosed": true
       }
     ]
   }

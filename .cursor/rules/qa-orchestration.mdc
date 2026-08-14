@@ -1,5 +1,5 @@
 ---
-description: How to drive a QA ticket or a red build to done by delegating to the test-writer, triage, and bug-reporter subagents.
+description: How to drive a QA ticket or a red build to done by delegating to test-writer, triage, self-heal, and bug-reporter.
 alwaysApply: true
 ---
 
@@ -11,6 +11,30 @@ You coordinate the QA subagents. Do the analysis yourself; delegate the rest.
 
 - **`jira-ticket-to-gherkin`** — ticket given; turn acceptance criteria into a Gherkin test plan.
 - **`explore-and-generate`** — no ticket; discover coverage gaps in the live UI and output a Gherkin test plan.
+- **`self-heal`** — after triage classifies drift; re-discover locators via Agent-Browser, patch the POM, re-run green with assertions unchanged, open a repair PR. Never for a real app bug.
+
+## Heal on red
+
+When `npx playwright test` or CI is **red**:
+
+1. **Delegate to triage** — classify the failure (read [ci-failure-triage](../skills/ci-failure-triage/SKILL.md)).
+2. **If triage says drift (test issue):** apply **`self-heal`** ([self-heal](../skills/self-heal/SKILL.md)):
+   - Re-discover the element via the Agent-Browser a11y tree (role + accessible name).
+   - Patch the POM in `pages/` — minimal role-based diff only.
+   - Re-run to prove green with **assertions unchanged** (`git diff tests/` must be empty).
+   - Open a **repair PR** linked to the failing run (branch, locator diff, green run proof).
+3. **If triage says real app bug:** delegate to **bug-reporter** — file and link Jira. **Never heal a bug.**
+
+**Budget:** at most **5 heals per run** (one locator repair each).
+
+**Stop and escalate** when:
+- Triage is inconclusive — ask a human before healing or filing.
+- A heal cannot prove green without touching assertions — do not weaken or delete `expect()`.
+- The same spec fails identically after two heal attempts.
+
+**Hard rules:**
+- Never heal an assertion — POM locators only; the assertion-guard hook blocks weakened specs.
+- Never merge a repair PR without human approval.
 
 ## Routing
 
@@ -21,8 +45,9 @@ You coordinate the QA subagents. Do the analysis yourself; delegate the rest.
 - plan ready → delegate to **test-writer**
 - spec returned → run: `npx playwright test`
 - run is red → delegate to **triage**
-- real app bug → delegate to **bug-reporter**
-- test issue → delegate to **test-writer** (propose a fix; human OKs)
+- triage says **drift** → apply **`self-heal`** → repair PR linked to run
+- triage says **real app bug** → delegate to **bug-reporter**
+- test issue (non-drift) → delegate to **test-writer** (propose a fix; human OKs)
 
 ### Backlog mode
 
@@ -37,7 +62,7 @@ Work a queue — not one ticket at a time. **The agent never decides when to sta
 1. analyze → apply **`jira-ticket-to-gherkin`**
 2. delegate to **test-writer**
 3. run: `npx playwright test`
-4. red → delegate to **triage** (file bug via **bug-reporter** only after human confirms)
+4. red → **Heal on red** (triage → self-heal or bug-reporter)
 
 **Output per ticket:**
 
@@ -64,6 +89,7 @@ Work a queue — not one ticket at a time. **The agent never decides when to sta
   - **test-writer** — write under `tests/` only; never application source, `pages/`, or other repo paths.
   - **triage** — read-only diagnosis; never edit source, push, merge, or apply fixes.
   - **bug-reporter** — read-only wrt the repo; files Jira only after human confirmation of a real app bug.
+  - **self-heal** (coordinator) — patch `pages/` locators only; never spec assertions, never app source; every heal → repair PR, never merge without human.
 
 ## Done
 
