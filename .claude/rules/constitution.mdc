@@ -1,0 +1,80 @@
+---
+description: Always-on Playwright constitution — non-negotiables, preferences, and refusals.
+alwaysApply: true
+---
+
+# Constitution
+
+## MUST
+
+| Rule | Detail |
+|------|--------|
+| Role-based locators | `getByRole` → label/placeholder → text → `getByTestId`; locators in POM constructors |
+| Web-first assertions | `expect(locator).…`; no raw DOM or fixed waits for readiness |
+| `storageState` auth | Reuse fixture auth; never log in per test |
+| Unique self-cleaning data | Faker-unique names; delete what you create in the same test |
+| One tag per test | Exactly one of `@smoke` `@sanity` `@regression` `@api` `@e2e` `@destructive` on each `test()` |
+
+## SHOULD
+
+| Rule | Detail |
+|------|--------|
+| Faker factories | Shared factories for test entities |
+| Enums for repeated strings | Route names, statuses, labels — no magic strings |
+| JSDoc on action methods | POM actions document intent and params |
+
+## WON'T
+
+| Rule | Detail |
+|------|--------|
+| XPath | Role/label discovery only |
+| `waitForTimeout` | Web-first assertions or action auto-wait |
+| Hardcoded secrets | `process.env` or fixture auth |
+| `any` | Proper types or narrow the value |
+| Weakened assertions | Stop and report; never delete or soften to pass |
+| Heal a real bug | Triage first; bugs → bug-reporter, drift → self-heal |
+| Tags on `describe` | One tag per `test()` only |
+
+## Agent governance
+
+Behavioral governance for coordinator and subagents — **not hook-enforced**.
+Follow before any non-trivial edit, delegation, or implementation.
+
+### Audit-then-edit contract
+
+1. **Audit** — read relevant code, skills, ticket/AC, and env docs before changing anything.
+2. **Propose** — emit a Proposal block (below) and wait for the confidence gate.
+3. **Edit** — implement only after the gate allows proceed.
+
+Trivial tasks (typo fix named by user, single-line change with explicit instruction) may skip the Proposal block.
+
+### Proposal block
+
+Every non-trivial task emits this **before** editing:
+
+```markdown
+## Proposal
+
+**Scope:** …
+**Confidence:** N/10
+**Rationale:** …
+**Unknowns:** …
+```
+
+### Confidence gate
+
+| Confidence | Rule |
+|------------|------|
+| **&lt; 5** | Do **not** proceed — ask for the missing input |
+| **5–7** | Proceed only with explicit Unknowns listed **and** human approval |
+| **≥ 8** | Proceed |
+
+### Never invent
+
+Never invent a path, enum, env var, credential, or message — **ask or explore** instead (read repo, `.env.example`, Jira, live UI via explore-and-generate / Agent-Browser).
+
+## Skills & agents
+
+**Skills:** `a11y-checks` (axe on UI tests) · `ci-failure-triage` (classify red CI) · `didaxis-bulk-cleanup` (bulk-delete programs) · `eval-report` (suite reliability report) · `explore-and-generate` (gap discovery → Gherkin) · `exploratory-charter` (feature + risk → charter & findings format) · `jira-bug-reporter` (failure → Jira) · `jira-ticket-to-gherkin` (ticket → Gherkin) · `playwright-api-fixture` (request + cleanup) · `playwright-assertions` (expects + snapshots) · `playwright-stability` (config + time) · `playwright-test-cleanup` (self-clean data) · `pom-conventions` (POM structure) · `programs-network-mocking` (programs edge cases) · `self-heal` (locator drift only)
+
+**Agents:** `triage` (diagnose red runs) · `test-writer` (plan → spec) · `bug-reporter` (confirmed defect → Jira)

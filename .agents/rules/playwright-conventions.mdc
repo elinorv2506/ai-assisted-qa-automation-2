@@ -1,0 +1,409 @@
+---
+description: how this project writes Playwright tests — locators, waiting, POM, auth, data, API, mocking, a11y, assertions, anti-flake
+globs: tests/**
+alwaysApply: false
+---
+
+# Playwright Conventions
+
+## Refusals (hard stops)
+
+The agent must **refuse** the following — stop work, explain the conflict, and
+escalate. These are not preferences; do not comply even if asked.
+
+- **Do not weaken or delete an assertion to make a test pass.** Stop and
+  report the failure; route to triage or bug-reporter.
+- **Do not self-heal a failure triage classified as a real app bug.** Stop and
+  route to bug-reporter; healing is for drift only.
+- **Do not replace a role-based locator with CSS or XPath.** Stop and
+  re-discover the element via role, label, or accessible name.
+- **Do not add `waitForTimeout` (or equivalent fixed sleeps).** Stop and use
+  web-first assertions or action auto-wait instead.
+- **Do not hardcode a credential** (token, password, API key, session secret).
+  Stop and use `process.env` or fixture auth.
+- **Do not use the `any` type.** Stop and add a proper type or narrow the value.
+
+---
+
+## Tagging strategy
+
+**Standard:** Exactly **one** importance tag per `test()` — never on `describe()`. Allowed values:
+
+| Tag | When to use | npm script |
+|-----|-------------|------------|
+| `@smoke` | Fast critical happy-path; run after every deploy | `npm run test:smoke` |
+| `@sanity` | Lightweight UI/read-only checks (forms visible, buttons disabled) | `npm run test:sanity` |
+| `@regression` | Negative, edge, a11y, network-mock, validation — default for broad coverage | `npm run test:regression` |
+| `@api` | `{ request }` contract/setup only — no browser UI under test | `npm run test:api` |
+| `@e2e` | Multi-step UI journeys (create → verify → follow-up action in one flow) | `npm run test:e2e` |
+| `@destructive` | Mutates **shared/global** state (locale, org roles, feature flags, settings) | `npm run test:destructive` |
+
+**`@destructive` rules:**
+
+- Use **only** when the test changes state other tests depend on — not when it creates data it cleans up via `trackProgram` / `trackUser`.
+- Run serially: `npm run test:destructive` passes `--workers=1`.
+- **Require** an `afterEach` or `afterAll` revert hook that restores the prior value even when the test fails mid-flow.
+
+✅ **Good** — self-cleaning data keeps its importance tag:
+
+```typescript
+test('TC-003 — Admin creates a user', { tag: '@e2e' }, async ({ trackUser }) => {
+  await settingsPage.createUser(buildUser(), trackUser);
+  await expect(settingsPage.userRow(name)).toBeVisible();
+});
+```
+
+✅ **Good** — global state change is `@destructive` with revert:
+
+```typescript
+test('TC-NNN — Org default locale switch', { tag: '@destructive' }, async ({ page }) => {
+  const previousLocale = await settingsPage.getOrgLocale();
+  try {
+    await settingsPage.setOrgLocale('fr-CA');
+    await expect(settingsPage.localeDisplay).toHaveText('fr-CA');
+  } finally {
+    await settingsPage.setOrgLocale(previousLocale);
+  }
+});
+
+test.afterEach(async () => {
+  await settingsPage.setOrgLocale('en-US'); // belt-and-suspenders revert
+});
+```
+
+❌ **Bad:**
+
+```typescript
+test.describe('Programs', { tag: '@smoke' }, () => { … });           // tag on describe
+test('TC-001', { tag: ['@smoke', '@api'] }, async () => { … });      // multiple tags
+test('TC-002', { tag: '@destructive' }, async ({ trackProgram }) => { … }); // own data only
+```
+
+**Why:** One tag enables predictable CI slices; `@destructive` serial + revert prevents shared-state pollution across workers.
+
+---
+
+## 1. Locators
+
+**Standard:** Role/label first (`getByRole` → `getByLabel` / `getByPlaceholder` → `getByText` → `getByTestId` escape hatch); never CSS/XPath; locators in POM constructors; disambiguate with `.filter({ hasText })`, not `.first()`.
+
+✅ **Good** (from `pages/ProgramsPage.ts`):
+
+```typescript
+this.newProgramButton = page.getByRole('button', { name: '+ New Program' });
+this.programRow = (name: string) =>
+  page.getByRole('row').filter({ has: page.getByText(name, { exact: true }) });
+```
+
+❌ **Bad:**
+
+```typescript
+page.locator('.programs-table tr:nth-child(2)');          // CSS + positional
+await programsPage.programRow(name).first().click();     // .first() masks ambiguity
+```
+
+**Why:** CSS/XPath and `.first()` bind to DOM structure, not user-visible labels — tests pass on the wrong row or break after unrelated UI refactors.
+
+---
+
+## 2. Waiting
+
+**Standard:** Web-first assertions only (`expect(locator).toBeVisible()` / `.toBeEnabled()` / `.toHaveText()`); never `waitForTimeout` or snapshot `await locator.isVisible()`.
+
+✅ **Good** (from `tests/ds1-create-program.spec.ts`):
+
+```typescript
+await expect(programsPage.newProgramModal.programNameField).toBeVisible();
+await expect(programsPage.newProgramModal.createButton).toBeEnabled();
+```
+
+❌ **Bad** (anti-pattern; still present in `pages/ProgramsPage.ts` — do not copy):
+
+```typescript
+await page.waitForTimeout(100);
+expect(await locator.isVisible()).toBe(true);
+```
+
+**Why:** Fixed delays race the app (too short → flake, too long → slow); snapshot booleans do not auto-retry when the DOM updates a moment later.
+
+---
+
+## 3. Page Objects
+
+**Standard:** One POM per page/component in `pages/`; `readonly` locators in the constructor; action methods only — all `expect(...)` stay in specs.
+
+✅ **Good** (from `tests/ds1-create-program.spec.ts`):
+
+```typescript
+const programsPage = new ProgramsPage(page);
+await programsPage.goto();
+await programsPage.openNewProgramForm();
+await expect(programsPage.newProgramModal.programNameField).toBeVisible();
+```
+
+❌ **Bad:**
+
+```typescript
+await page.getByRole('button', { name: '+ New Program' }).click();  // inline locator in spec
+// inside pages/ProgramsPage.ts:
+expect(await this.heading.isVisible()).toBe(true);                  // assertion in POM
+```
+
+**Why:** Inline locators duplicate and drift from POMs; assertions in POMs hide intent and cannot use Playwright's test-scoped retry/reporting.
+
+---
+
+## 4. Auth
+
+**Standard:** Stored session by default via the `setup` project (`auth.setup.ts` → `playwright/.auth/user.json`); login-page tests only use empty `storageState` + UI login; API login for bulk setup or stale sessions (`auth-strategy.md`).
+
+✅ **Good** (from `tests/auth-reuse.spec.ts` — relies on config `storageState`):
+
+```typescript
+test('reuse 1 — programs page loads authenticated', async ({ page }) => {
+  await page.goto(`${BASE_URL}/programs`);
+  await expect(page.getByRole('heading', { name: 'Programs', level: 2 })).toBeVisible();
+});
+```
+
+❌ **Bad:**
+
+```typescript
+test.beforeEach(async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(process.env.DIDAXIS_EMAIL!);
+  await page.getByRole('button', { name: 'Sign In' }).click();  // every test
+});
+```
+
+**Why:** Per-test UI login adds seconds of flake surface and hides auth regressions that `storageState` reuse is meant to catch.
+
+---
+
+## 5. Test data
+
+**Standard:** Faker factories under `test-data/factories/` for happy-path entities; curated invalid sets in static `test-data/invalid/*.ts`; secrets and base URLs from `process.env`; repeated routes, labels, and messages from `test-data/enums/`; import `test` from `fixtures/cleanup.fixture.ts`; call `trackProgram(uuid)` / `trackUser(id)` after every create.
+
+✅ **Good** — factory + enum + fixture cleanup:
+
+```typescript
+import { test, expect } from '../fixtures/cleanup.fixture';
+import { buildProgram } from '../test-data/factories/program.factory';
+import { INVALID_PROGRAM_NAMES } from '../test-data/invalid/program-names';
+import { AppRoute } from '../test-data/enums/routes';
+
+test('TC-003 — Create program', { tag: '@smoke' }, async ({ trackProgram, page }) => {
+  const { name, description } = buildProgram();
+  await page.goto(AppRoute.Programs);
+  await programsPage.createProgram(name, trackProgram, { description });
+  await expect(programsPage.programRow(name)).toBeVisible();
+});
+
+test('TC-006 — Whitespace-only name rejected', { tag: '@regression' }, async () => {
+  await programsPage.fillProgramName(INVALID_PROGRAM_NAMES.whitespaceOnly);
+  await expect(programsPage.newProgramModal.createButton).toBeDisabled();
+});
+```
+
+Example factory (`test-data/factories/program.factory.ts`):
+
+```typescript
+import { faker } from '@faker-js/faker';
+
+export function buildProgram(overrides: Partial<ProgramSeed> = {}): ProgramSeed {
+  const suffix = faker.string.alphanumeric(8);
+  return {
+    name: `QA Program ${suffix}`,
+    description: faker.lorem.sentence(),
+    ...overrides,
+  };
+}
+```
+
+❌ **Bad:**
+
+```typescript
+import { test, expect } from '@playwright/test';   // skips cleanup fixture
+const programName = 'Web Development 2026';         // static — collides under fullyParallel
+const token = 'eyJhbGciOiJIUzI1NiIs…';           // hardcoded secret
+await page.goto('https://test.didaxis.studio/programs'); // magic URL string
+// create program but never trackProgram(uuid)
+```
+
+**Why:** Factories isolate uniqueness; static invalid sets are reviewable; enums stop route/copy drift; env vars keep secrets out of source; missing `trackProgram` leaves orphan data.
+
+---
+
+## 6. API testing
+
+**Standard:** Use Playwright `{ request }` for setup/teardown helpers and contract checks; prefer `trackProgram` for program lifecycle; never hardcode tokens.
+
+✅ **Good** *(advised — no dedicated contract spec in repo yet; see `playwright-api-fixture` skill)*:
+
+```typescript
+import { test, expect } from '../fixtures/cleanup.fixture';
+
+test('GET /api/programs returns data array', { tag: '@api' }, async ({ request }) => {
+  const res = await request.get('/api/programs', {
+    headers: { Authorization: `Bearer ${process.env.DIDAXIS_API_TOKEN}` },
+  });
+  expect(res.ok()).toBeTruthy();
+  expect(Array.isArray((await res.json()).data)).toBe(true);
+});
+```
+
+❌ **Bad:**
+
+```typescript
+const token = 'eyJhbGciOiJIUzI1NiIs…';           // hardcoded secret
+test.afterAll(async () => { await deleteAllPrograms(); });  // manual teardown
+```
+
+**Why:** Hardcoded tokens leak credentials and rot; manual `afterAll` cleanup skips on failure mid-test and fights parallel isolation.
+
+---
+
+## 7. Network mocking
+
+**Standard:** Use `page.route` / `route.fulfill` for 500/503/timeout/empty/malformed (plus 401/403/404/3xx); read live error/empty copy before asserting; never mock the endpoint under test; tag `{ tag: '@regression' }` (UI + mock).
+
+✅ **Good** (from `tests/ds1-create-program.spec.ts` TC-011 — tighten URL in new tests):
+
+```typescript
+await page.route('**/api/programs**', async (route) => {
+  if (route.request().method() === 'POST') {
+    await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+    return;
+  }
+  await route.continue();
+});
+await programsPage.newProgramModal.clickCreate();
+await expect(programsPage.newProgramModal.dialog).toBeVisible();  // modal stays open
+```
+
+❌ **Bad:**
+
+```typescript
+await page.route('**/*', async (route) => route.abort());  // blocks auth, assets, unrelated APIs
+await expect(page.getByText('Something went wrong')).toBeVisible();  // invented copy
+```
+
+**Why:** Broad routes intercept traffic the test still needs; invented strings pass while the UI shows nothing or different copy (`ds4` TC-013 notes delete errors may be silent).
+
+---
+
+## 8. Accessibility
+
+**Standard:** Axe scan with `.withTags(['wcag2a','wcag2aa'])` on key pages plus a separate keyboard test (Tab → `toBeFocused()` → Enter opens dialog); POM locators only; tag `{ tag: '@regression' }`; report real violations — never `.disableRules()` to go green.
+
+✅ **Good** *(advised target — replace `tests/programs.a11y.spec.ts` fixme pattern; see `a11y-checks` skill)*:
+
+```typescript
+test('Programs page WCAG 2 A/AA', { tag: '@regression' }, async ({ page }) => {
+  await programsPage.goto();
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+  await expect(results.violations).toEqual([]);
+});
+
+test('Tab+Enter opens New Program', { tag: '@regression' }, async ({ page }) => {
+  await programsPage.goto();
+  // tab until programsPage.newProgramButton focused …
+  await expect(programsPage.newProgramButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(programsPage.newProgramModal.dialog).toBeVisible();
+});
+```
+
+❌ **Bad** (from `tests/programs.a11y.spec.ts` — do not copy):
+
+```typescript
+const results = await new AxeBuilder({ page })
+  .disableRules('color-contrast')   // silences real failures
+  .analyze();
+expect(results.violations).toEqual([]);  // bare expect, no WCAG tags
+```
+
+**Why:** Disabling rules hides WCAG defects; missing keyboard tests leaves focus order unverified; axe alone cannot catch Tab/Enter activation.
+
+---
+
+## 9. Assertions
+
+**Standard:** Web-first hard `expect` for AC gates; `expect.soft` for independent multi-check audits; `toHaveScreenshot` only when visual regression is the AC (human-approved baseline, `{ tag: '@visual' }`).
+
+✅ **Good** (from `tests/ds1-create-program.spec.ts`):
+
+```typescript
+await expect(programsPage.programRow(programName)).toHaveCount(1);
+await expect(programsPage.newProgramModal.dialog).toBeHidden({ timeout: 15000 });
+```
+
+✅ **Soft audit** *(advised — see `playwright-assertions` skill)*:
+
+```typescript
+await expect.soft(programsPage.programNameInRow(name)).toBeVisible();
+await expect.soft(programsPage.programDescriptionInRow(name)).toBeVisible();
+```
+
+❌ **Bad:**
+
+```typescript
+expect(await programsPage.programRow(name).count()).toBe(1);  // no auto-retry
+await expect(page).toHaveScreenshot();                         // visual without baseline/AC
+await expect.soft(criticalSubmitButton).toBeEnabled();         // soft on must-pass gate
+```
+
+**Why:** Non-retrying reads flake on slow renders; unapproved screenshots pass on any first pixel dump; soft asserts on critical gates hide the failure that blocks the user.
+
+---
+
+## 10. Anti-flake
+
+**Standard:** CI-only retries (`process.env.CI ? 2 : 0`); isolation via `fullyParallel`, unique data, and `trackProgram`; `page.clock.install()` before navigation for timestamp assertions; pinned `locale: 'en-US'` / `timezoneId: 'UTC'`; never `retries > 2`. Exception: `@destructive` runs via `npm run test:destructive` with `--workers=1` only.
+
+✅ **Good** (from `playwright.config.ts` + advised clock pattern):
+
+```typescript
+// playwright.config.ts
+fullyParallel: true,
+retries: process.env.CI ? 2 : 0,
+use: { locale: 'en-US', timezoneId: 'UTC', trace: 'on-first-retry' },
+
+// spec — freeze before goto when asserting timestamp text
+await page.clock.install({ time: new Date('2026-08-08T16:00:00.000Z') });
+const programName = `Web Development 2026 ${Date.now()}`;
+```
+
+❌ **Bad:**
+
+```typescript
+// playwright.config.ts
+workers: 1,
+retries: 5,
+
+// spec
+const programName = 'Web Development 2026';  // shared static name
+await page.goto('/programs');                // wall-clock Date.now() already ran
+```
+
+**Why:** Serial runs and high retries mask real flakes; static data races under parallel workers; unpinned locale/timezone and wall-clock timestamps differ between local machine and CI.
+
+---
+
+## Do / Don't quick reference
+
+| Do | Don't |
+|---|---|
+| `getByRole` / `getByLabel` in POM constructors | CSS, XPath, or inline locators in specs |
+| `expect(locator).toBeVisible()` / `.toHaveText()` | `waitForTimeout`, `await locator.isVisible()` snapshots |
+| Actions in POMs; assertions in specs | `expect(...)` inside `pages/` |
+| Rely on `storageState` from `setup` project | UI login in every feature test |
+| `uniqueName()` + `trackProgram(uuid)` | Static names; `@playwright/test` import when creating data |
+| One importance tag per `test()` (`@smoke` … `@destructive`) | Tags on `describe()`; multiple tags; `@destructive` for self-cleaned data |
+| Faker factories + enums + `process.env` | Hardcoded secrets/URLs; inline invalid-value literals |
+| `{ request }` for API contracts; fixture for cleanup | Hardcoded Bearer tokens; manual `afterAll` delete |
+| Targeted `page.route('**/api/programs**')` + live copy | `**/*` routes; invented error/empty strings |
+| Axe `.withTags(['wcag2a','wcag2aa'])` + keyboard test | `.disableRules()` to green a failing scan |
+| Hard `expect` for AC; `expect.soft` for audits | Soft asserts on critical gates |
+| `page.clock.install()` before timestamp asserts | Wall-clock `Date.now()` when asserting the value |
+| `retries: 2` on CI only; `fullyParallel: true` | Global `workers: 1` (except `test:destructive`); `retries > 2` |
