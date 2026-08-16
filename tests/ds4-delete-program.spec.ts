@@ -26,7 +26,7 @@ test.describe('Positive Flows', () => {
     await programsPage.goto();
   });
 
-  test('TC-001 — Delete program with confirmation — dialog appears', async ({ page, trackProgram }) => {
+  test('TC-001 — Delete program with confirmation — dialog appears', { tag: '@e2e' }, async ({ page, trackProgram }) => {
     const programName = uniqueName('Test Program');
     const description = 'Sample program for deletion testing';
 
@@ -39,7 +39,7 @@ test.describe('Positive Flows', () => {
     // Native window.confirm() cannot be scanned with axe; see programs.a11y.spec.ts for page-level a11y.
   });
 
-  test('TC-002 — Delete program with confirmation — successful deletion', async ({ trackProgram }) => {
+  test('TC-002 — Delete program with confirmation — successful deletion', { tag: '@e2e' }, async ({ trackProgram }) => {
     const programName = uniqueName('Test Program');
     const description = 'Sample program for deletion testing';
 
@@ -49,7 +49,7 @@ test.describe('Positive Flows', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-003 — Cancel program deletion', async ({ trackProgram }) => {
+  test('TC-003 — Cancel program deletion', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('Web Development 2026');
     const description = 'Full-stack web development program';
 
@@ -60,7 +60,7 @@ test.describe('Positive Flows', () => {
     await expect(programsPage.programDescriptionInRow(programName)).toHaveText(description);
   });
 
-  test('TC-004 — Confirmation dialog shows target program name', async ({ trackProgram }) => {
+  test('TC-004 — Confirmation dialog shows target program name', { tag: '@e2e' }, async ({ trackProgram }) => {
     const programName = uniqueName('Informatique & IA - Niveau 2');
     const description = 'Programme avancé en informatique et intelligence artificielle';
 
@@ -70,7 +70,7 @@ test.describe('Positive Flows', () => {
     expect(message).toContain(programName);
   });
 
-  test('TC-005 — Delete affects only the selected program', async ({ trackProgram }) => {
+  test('TC-005 — Delete affects only the selected program', { tag: '@e2e' }, async ({ trackProgram }) => {
     const programA = uniqueName('Test Program');
     const programB = uniqueName('Web Development 2026');
     const programC = uniqueName('Cloud Engineering 2026');
@@ -86,7 +86,7 @@ test.describe('Positive Flows', () => {
     await expect(programsPage.programRow(programC).first()).toBeVisible();
   });
 
-  test('TC-006 — Deleted program stays removed after refresh', async ({ page, trackProgram }) => {
+  test('TC-006 — Deleted program stays removed after refresh', { tag: '@e2e' }, async ({ page, trackProgram }) => {
     const programName = uniqueName('Test Program');
 
     await createProgram(programsPage, trackProgram, programName, 'Sample program for deletion testing');
@@ -98,7 +98,7 @@ test.describe('Positive Flows', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-007 — Delete program with special characters in name', async ({ trackProgram }) => {
+  test('TC-007 — Delete program with special characters in name', { tag: '@e2e' }, async ({ trackProgram }) => {
     const programName = uniqueName('C++ & C# Dev (2026) — "Advanced"');
     const description = 'Covers C++, C#, and related tooling';
 
@@ -110,7 +110,7 @@ test.describe('Positive Flows', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-008 — Recreate program after deletion', async ({ trackProgram }) => {
+  test('TC-008 — Recreate program after deletion', { tag: '@e2e' }, async ({ trackProgram }) => {
     const programName = uniqueName('Web Development 2026');
     const description = 'Full-stack web development program';
 
@@ -134,7 +134,7 @@ test.describe('Negative Flows', () => {
     await programsPage.goto();
   });
 
-  test('TC-009 — No deletion without explicit confirmation', async ({ trackProgram }) => {
+  test('TC-009 — No deletion without explicit confirmation', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('Cloud Engineering 2026');
 
     await createProgram(programsPage, trackProgram, programName, 'AWS and Azure fundamentals');
@@ -143,7 +143,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.programRow(programName).first()).toBeVisible();
   });
 
-  test('TC-010 — Multiple cancel actions do not delete', async ({ trackProgram }) => {
+  test('TC-010 — Multiple cancel actions do not delete', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('Test Program');
 
     await createProgram(programsPage, trackProgram, programName, 'Sample program for deletion testing');
@@ -156,7 +156,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.programRow(programName).first()).toBeVisible();
   });
 
-  test('TC-011 — Edit does not trigger delete', async ({ page, trackProgram }) => {
+  test('TC-011 — Edit does not trigger delete', { tag: '@regression' }, async ({ page, trackProgram }) => {
     const programName = uniqueName('Web Development 2026');
     let dialogOpened = false;
     page.on('dialog', () => {
@@ -174,7 +174,7 @@ test.describe('Negative Flows', () => {
     await programsPage.editProgramModal.dismiss();
   });
 
-  test('TC-012 — Delete confirmation targets the clicked row only', async ({ trackProgram }) => {
+  test('TC-012 — Delete confirmation targets the clicked row only', { tag: '@regression' }, async ({ trackProgram }) => {
     const programA = uniqueName('Test Program');
     const programB = uniqueName('Web Development 2026');
 
@@ -189,7 +189,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.programRow(programB).first()).toBeVisible();
   });
 
-  test('TC-013 — Failed delete preserves program in list', async ({ page, trackProgram }) => {
+  test('TC-013 — Failed delete preserves program in list', { tag: '@regression' }, async ({ page, trackProgram }) => {
     const programName = uniqueName('Test Program');
 
     await createProgram(programsPage, trackProgram, programName, 'Sample program for deletion testing');
@@ -213,7 +213,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.programRow(programName).first()).toBeVisible();
   });
 
-  test('TC-014 — Non-admin cannot delete programs', async () => {
+  test('TC-014 — Non-admin cannot delete programs', { tag: '@regression' }, async () => {
     test.skip(true, 'Instructor/non-admin credentials not configured in .env');
   });
 });
@@ -226,7 +226,7 @@ test.describe('Edge Cases', () => {
     await programsPage.goto();
   });
 
-  test('TC-015 — Delete the only program in the list', async ({ trackProgram }) => {
+  test('TC-015 — Delete the only program in the list', { tag: '@e2e' }, async ({ trackProgram }) => {
     const programName = uniqueName('Test Program');
 
     await createProgram(programsPage, trackProgram, programName, 'Sample program for deletion testing');
@@ -236,7 +236,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.newProgramButton).toBeVisible();
   });
 
-  test('TC-016 — Delete program with max-length name', async ({ trackProgram }) => {
+  test('TC-016 — Delete program with max-length name', { tag: '@e2e' }, async ({ trackProgram }) => {
     const maxName = 'W'.repeat(255);
 
     await createProgram(programsPage, trackProgram, maxName, 'Max length name delete test');
@@ -245,7 +245,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(maxName)).toHaveCount(0);
   });
 
-  test('TC-017 — Delete program with single-character name', async ({ trackProgram }) => {
+  test('TC-017 — Delete program with single-character name', { tag: '@e2e' }, async ({ trackProgram }) => {
     const programName = String.fromCharCode(65 + (Date.now() % 26));
     const description = 'Single character name';
 
@@ -255,7 +255,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-018 — Delete program with Unicode and emoji name', async ({ trackProgram }) => {
+  test('TC-018 — Delete program with Unicode and emoji name', { tag: '@e2e' }, async ({ trackProgram }) => {
     const programName = uniqueName('日本語プログラム 🎓');
     const description = 'Unicode and emoji test';
 
@@ -267,7 +267,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-019 — Double-click confirm does not break delete flow', async ({ trackProgram }) => {
+  test('TC-019 — Double-click confirm does not break delete flow', { tag: '@e2e' }, async ({ trackProgram }) => {
     const programName = uniqueName('Test Program');
 
     await createProgram(programsPage, trackProgram, programName, 'Sample program for deletion testing');
@@ -277,7 +277,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.deleteProgramModal.deletionError).toBeHidden();
   });
 
-  test('TC-020 — Double-click delete icon opens single dialog', async ({ trackProgram }) => {
+  test('TC-020 — Double-click delete icon opens single dialog', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('Web Development 2026');
 
     await createProgram(programsPage, trackProgram, programName, 'Full-stack web development program');
@@ -287,7 +287,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(programName).first()).toBeVisible();
   });
 
-  test('TC-021 — Delete while edit modal is open', async ({ page, trackProgram }) => {
+  test('TC-021 — Delete while edit modal is open', { tag: '@regression' }, async ({ page, trackProgram }) => {
     const programName = uniqueName('Web Development 2026');
     const siblingProgram = uniqueName('Cloud Engineering 2026');
 
@@ -309,7 +309,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(siblingProgram).first()).toBeVisible();
   });
 
-  test('TC-022 — Delete program with long description', async ({ trackProgram }) => {
+  test('TC-022 — Delete program with long description', { tag: '@e2e' }, async ({ trackProgram }) => {
     const programName = uniqueName('Long Description Program');
     const longDescription = 'D'.repeat(2000);
 
@@ -319,7 +319,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-023 — Dismiss dialog without confirming does not delete', async ({ trackProgram }) => {
+  test('TC-023 — Dismiss dialog without confirming does not delete', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('Test Program');
 
     await createProgram(programsPage, trackProgram, programName, 'Sample program for deletion testing');

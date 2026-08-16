@@ -15,7 +15,7 @@ test.describe('Positive Flows', () => {
     await programsPage.goto();
   });
 
-  test('TC-001 — Program with special characters in name is created successfully', async ({
+  test('TC-001 — Program with special characters in name is created successfully', { tag: '@regression' }, async ({
     trackProgram,
   }) => {
     const programName = uniqueName('Informatique & IA - Niveau 2');
@@ -29,7 +29,7 @@ test.describe('Positive Flows', () => {
     await expect(programsPage.programNameInRow(programName)).toHaveText(programName);
   });
 
-  test('TC-002 — Standard valid Program Name creates program without duplicate conflict', async ({
+  test('TC-002 — Standard valid Program Name creates program without duplicate conflict', { tag: '@regression' }, async ({
     trackProgram,
   }) => {
     const programName = uniqueName('Web Development 2026');
@@ -42,7 +42,7 @@ test.describe('Positive Flows', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(1);
   });
 
-  test.fixme('TC-003 — Program Name with leading and trailing spaces is trimmed and saved', async ({
+  test.fixme('TC-003 — Program Name with leading and trailing spaces is trimmed and saved', { tag: '@regression' }, async ({
     trackProgram,
   }) => {
     const trimmedName = uniqueName('Cloud Engineering 2026');
@@ -57,7 +57,7 @@ test.describe('Positive Flows', () => {
     await expect(programsPage.programRow(paddedName)).toHaveCount(0);
   });
 
-  test('TC-004 — Additional allowed special characters are preserved end-to-end', async ({
+  test('TC-004 — Additional allowed special characters are preserved end-to-end', { tag: '@regression' }, async ({
     trackProgram,
   }) => {
     const programName = uniqueName('C++ & C# Dev (2026) — "Advanced"');
@@ -70,7 +70,7 @@ test.describe('Positive Flows', () => {
     await expect(programsPage.programNameInRow(programName)).toHaveText(programName);
   });
 
-  test('TC-005 — Unicode characters in Program Name are accepted', async ({ trackProgram }) => {
+  test('TC-005 — Unicode characters in Program Name are accepted', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('תוכנית פיתוח אתרים 2026');
     const description = 'תיאור בעברית — full-stack program';
 
@@ -90,7 +90,7 @@ test.describe('Negative Flows', () => {
     await programsPage.goto();
   });
 
-  test('TC-006 — Whitespace-only Program Name is rejected and form is not submitted', async () => {
+  test('TC-006 — Whitespace-only Program Name is rejected and form is not submitted', { tag: '@regression' }, async () => {
     await programsPage.openNewProgramForm();
     await programsPage.newProgramModal.fillProgramName('   ');
     await programsPage.newProgramModal.fillDescription('Optional description text');
@@ -99,7 +99,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.newProgramModal.dialog).toBeVisible();
   });
 
-  test.fixme('TC-007 — Duplicate Program Name is rejected with a clear error', async ({ trackProgram }) => {
+  test.fixme('TC-007 — Duplicate Program Name is rejected with a clear error', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('Web Development 2026');
     const originalDescription = 'Full-stack web development program';
 
@@ -118,7 +118,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(1);
   });
 
-  test('TC-008 — Empty Program Name prevents submission', async () => {
+  test('TC-008 — Empty Program Name prevents submission', { tag: '@regression' }, async () => {
     await programsPage.openNewProgramForm();
     await programsPage.newProgramModal.fillDescription('Description without a name');
 
@@ -127,7 +127,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.newProgramModal.dialog).toBeVisible();
   });
 
-  test.fixme('TC-009 — Duplicate attempt does not modify the existing program', async ({ trackProgram }) => {
+  test.fixme('TC-009 — Duplicate attempt does not modify the existing program', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('Web Development 2026');
     const originalDescription = 'Full-stack web development program';
 
@@ -145,7 +145,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(1);
   });
 
-  test.fixme('TC-010 — Whitespace-padded duplicate name is rejected after trimming', async ({
+  test.fixme('TC-010 — Whitespace-padded duplicate name is rejected after trimming', { tag: '@regression' }, async ({
     trackProgram,
   }) => {
     const programName = uniqueName('Web Development 2026');
@@ -166,7 +166,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(1);
   });
 
-  test.fixme('TC-011 — Duplicate error preserves user input for correction', async ({ trackProgram }) => {
+  test.fixme('TC-011 — Duplicate error preserves user input for correction', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('Web Development 2026');
     const advancedName = `${programName} - Advanced`;
     const description = 'Advanced React and Node.js';
@@ -190,7 +190,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(1);
   });
 
-  test('TC-012 — Valid name is not rejected when a similar but different name exists', async ({
+  test('TC-012 — Valid name is not rejected when a similar but different name exists', { tag: '@regression' }, async ({
     trackProgram,
   }) => {
     const programName = uniqueName('Web Development 2026');
@@ -218,7 +218,7 @@ test.describe('Edge Cases', () => {
     await programsPage.goto();
   });
 
-  test('TC-013 — Tabs and newline characters in whitespace-only name are rejected', async () => {
+  test('TC-013 — Tabs and newline characters in whitespace-only name are rejected', { tag: '@regression' }, async () => {
     for (const whitespaceOnly of ['\t\t', '\n\n']) {
       await programsPage.openNewProgramForm();
       await programsPage.newProgramModal.fillProgramName(whitespaceOnly);
@@ -231,7 +231,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.newProgramModal.dialog).toBeHidden();
   });
 
-  test('TC-014 — Minimum-length Program Name (single character) is accepted', async ({
+  test('TC-014 — Minimum-length Program Name (single character) is accepted', { tag: '@regression' }, async ({
     trackProgram,
   }) => {
     const programName = String.fromCharCode(65 + (Date.now() % 26));
@@ -244,7 +244,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(programName).last()).toBeVisible();
   });
 
-  test('TC-015 — Program Name at maximum allowed length is accepted', async ({ trackProgram }) => {
+  test('TC-015 — Program Name at maximum allowed length is accepted', { tag: '@regression' }, async ({ trackProgram }) => {
     const maxName = 'W'.repeat(255);
 
     await programsPage.openNewProgramForm();
@@ -254,7 +254,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(maxName)).toHaveCount(1);
   });
 
-  test.fixme('TC-015b — Program name exceeding maximum length is rejected', async () => {
+  test.fixme('TC-015b — Program name exceeding maximum length is rejected', { tag: '@regression' }, async () => {
     const overMaxName = 'W'.repeat(256);
 
     await programsPage.openNewProgramForm();
@@ -266,7 +266,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.newProgramModal.dialog).toBeVisible();
   });
 
-  test.fixme('TC-016 — Duplicate detection is case-sensitive (or per documented rule)', async ({
+  test.fixme('TC-016 — Duplicate detection is case-sensitive (or per documented rule)', { tag: '@regression' }, async ({
     trackProgram,
   }) => {
     const suffix = Date.now();
@@ -298,7 +298,7 @@ test.describe('Edge Cases', () => {
     }
   });
 
-  test('TC-017 — Internal multiple spaces in valid name are preserved', async ({ trackProgram }) => {
+  test('TC-017 — Internal multiple spaces in valid name are preserved', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = `Data  Science  2026 ${Date.now()}`;
     const description = 'Internal spacing test';
 
@@ -309,7 +309,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programNameInRow(programName)).toHaveText(programName);
   });
 
-  test.fixme('TC-018 — Rapid double-click on Create does not bypass duplicate validation', async ({
+  test.fixme('TC-018 — Rapid double-click on Create does not bypass duplicate validation', { tag: '@regression' }, async ({
     trackProgram,
   }) => {
     const programName = uniqueName('Mobile App Development 2025');
@@ -330,7 +330,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(1);
   });
 
-  test.fixme('TC-019 — Special characters in name do not bypass duplicate check', async ({
+  test.fixme('TC-019 — Special characters in name do not bypass duplicate check', { tag: '@regression' }, async ({
     trackProgram,
   }) => {
     const programName = uniqueName('Informatique & IA - Niveau 2');
@@ -350,7 +350,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(1);
   });
 
-  test('TC-020 — Whitespace-only name with filled Description does not create a program', async () => {
+  test('TC-020 — Whitespace-only name with filled Description does not create a program', { tag: '@regression' }, async () => {
     await programsPage.openNewProgramForm();
     await programsPage.newProgramModal.fillProgramName('     ');
     await programsPage.newProgramModal.fillDescription('Full-stack web development program');

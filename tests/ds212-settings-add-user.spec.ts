@@ -19,7 +19,7 @@ test.describe('DS-212: Add user in Settings', () => {
       await settingsPage.goto();
     });
 
-    test('TC-001 — Admin navigates to Settings and sees Users management', async () => {
+    test('TC-001 — Admin navigates to Settings and sees Users management', { tag: '@sanity' }, async () => {
       await expect(settingsPage.heading).toBeVisible();
       await expect(settingsPage.usersHeading).toBeVisible();
       await expect(settingsPage.addUserButton).toBeVisible();
@@ -30,7 +30,7 @@ test.describe('DS-212: Add user in Settings', () => {
       await expect(settingsPage.activeColumnHeader).toBeVisible();
     });
 
-    test('TC-002 — Add User modal displays required fields', async () => {
+    test('TC-002 — Add User modal displays required fields', { tag: '@sanity' }, async () => {
       await settingsPage.openAddUserModal();
 
       await expect(settingsPage.addUserModal.dialog).toBeVisible();
@@ -42,7 +42,7 @@ test.describe('DS-212: Add user in Settings', () => {
       await expect(settingsPage.addUserModal.createUserButton).toBeVisible();
     });
 
-    test('TC-003 — Admin successfully creates a new user', async ({ trackUser }) => {
+    test('TC-003 — Admin successfully creates a new user', { tag: '@e2e' }, async ({ trackUser }) => {
       const name = uniqueName('QA Instructor Elena');
       const email = uniqueEmail();
 
@@ -59,7 +59,7 @@ test.describe('DS-212: Add user in Settings', () => {
       await expect(settingsPage.userActiveSwitchInRow(name)).toBeChecked();
     });
 
-    test('TC-004 — Admin can create a user with VIEWER role', async ({ trackUser }) => {
+    test('TC-004 — Admin can create a user with VIEWER role', { tag: '@e2e' }, async ({ trackUser }) => {
       const name = uniqueName('QA Viewer Victor');
       const email = uniqueEmail();
 
@@ -74,7 +74,7 @@ test.describe('DS-212: Add user in Settings', () => {
       await expect(settingsPage.userRoleInRow(name, 'VIEWER')).toBeVisible();
     });
 
-    test('TC-005 — Create User button enables when all required fields are valid', async () => {
+    test('TC-005 — Create User button enables when all required fields are valid', { tag: '@sanity' }, async () => {
       const name = uniqueName('QA Editor Emma');
       const email = uniqueEmail();
 
@@ -97,7 +97,7 @@ test.describe('DS-212: Add user in Settings', () => {
       await settingsPage.goto();
     });
 
-    test('TC-006 — Create User stays disabled with empty Name', async () => {
+    test('TC-006 — Create User stays disabled with empty Name', { tag: '@regression' }, async () => {
       const ghostName = uniqueName('Missing Name User');
 
       await settingsPage.openAddUserModal();
@@ -108,7 +108,7 @@ test.describe('DS-212: Add user in Settings', () => {
       await expect(settingsPage.userRow(ghostName)).toHaveCount(0);
     });
 
-    test('TC-007 — Create User stays disabled with empty Email', async () => {
+    test('TC-007 — Create User stays disabled with empty Email', { tag: '@regression' }, async () => {
       const name = uniqueName('No Email User');
 
       await settingsPage.openAddUserModal();
@@ -119,7 +119,7 @@ test.describe('DS-212: Add user in Settings', () => {
       await expect(settingsPage.userRow(name)).toHaveCount(0);
     });
 
-    test('TC-008 — Create User stays disabled when password is shorter than 8 characters', async () => {
+    test('TC-008 — Create User stays disabled when password is shorter than 8 characters', { tag: '@regression' }, async () => {
       const name = uniqueName('Short Password User');
 
       await settingsPage.openAddUserModal();
@@ -131,7 +131,7 @@ test.describe('DS-212: Add user in Settings', () => {
       await expect(settingsPage.userRow(name)).toHaveCount(0);
     });
 
-    test('TC-009 — Closing Add User modal without submit does not create a user', async () => {
+    test('TC-009 — Closing Add User modal without submit does not create a user', { tag: '@regression' }, async () => {
       const name = uniqueName('Cancelled User');
 
       await settingsPage.openAddUserModal();
@@ -144,7 +144,7 @@ test.describe('DS-212: Add user in Settings', () => {
       await expect(settingsPage.userRow(name)).toHaveCount(0);
     });
 
-    test('TC-010 — Duplicate email is not silently accepted', async ({ trackUser }) => {
+    test('TC-010 — Duplicate email is not silently accepted', { tag: '@regression' }, async ({ trackUser }) => {
       const email = uniqueEmail();
       const seedName = uniqueName('Dup Seed User');
       const duplicateName = uniqueName('Duplicate Email Attempt');
@@ -176,7 +176,7 @@ test.describe('DS-212: Add user in Settings', () => {
       await settingsPage.goto();
     });
 
-    test('TC-011 — User name with special characters is accepted', async ({ trackUser }) => {
+    test('TC-011 — User name with special characters is accepted', { tag: '@e2e' }, async ({ trackUser }) => {
       const name = `María O'Connor-Smith (QA) ${Date.now()}`;
       const email = uniqueEmail();
 
@@ -190,7 +190,7 @@ test.describe('DS-212: Add user in Settings', () => {
       await expect(settingsPage.userRow(name)).toBeVisible();
     });
 
-    test('TC-012 — Password with exactly 8 characters enables Create User', async () => {
+    test('TC-012 — Password with exactly 8 characters enables Create User', { tag: '@sanity' }, async () => {
       const name = uniqueName('Eight Char Pass');
       const email = uniqueEmail();
 
@@ -213,7 +213,7 @@ test.describe('DS-212: Add user in Settings', () => {
 
     test(
       'TC-013 — User creation survives POST /users server error',
-      { tag: '@network-503' },
+      { tag: '@regression' },
       async ({ page }) => {
         const name = uniqueName('Network Fail User');
         const email = uniqueEmail();
@@ -252,7 +252,7 @@ test.describe('DS-212: Add user in Settings', () => {
 
     test.fixme(
       'Users section passes WCAG 2 A/AA axe scan',
-      { tag: '@a11y-axe-settings-page' },
+      { tag: '@regression' },
       async ({ page }) => {
         // Blocked by app bug: color-contrast violations on dimmed table/email text in Users card
         await expect(settingsPage.usersSection).toBeVisible();
@@ -269,7 +269,7 @@ test.describe('DS-212: Add user in Settings', () => {
 
     test(
       'Add User modal passes WCAG 2 A/AA axe scan',
-      { tag: '@a11y-axe-add-user-modal' },
+      { tag: '@regression' },
       async ({ page }) => {
         await settingsPage.openAddUserModal();
         await expect(settingsPage.addUserModal.dialog).toBeVisible();
@@ -287,7 +287,7 @@ test.describe('DS-212: Add user in Settings', () => {
 
     test(
       'Tab and Enter on Add User opens dialog',
-      { tag: '@a11y-keyboard-add-user' },
+      { tag: '@regression' },
       async ({ page }) => {
         await expect(settingsPage.addUserButton).toBeVisible();
 

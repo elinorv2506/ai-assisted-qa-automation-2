@@ -7,3 +7,8 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 .env
+
+# Eval report (generated)
+reports/eval-report.md
+reports/eval-report-data.json
+.cursor/eval/telemetry.jsonl

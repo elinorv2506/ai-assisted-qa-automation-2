@@ -71,3 +71,21 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+      - name: Generate reliability report
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT_AI_2 }}
+        run: |
+          node scripts/eval-report-collect.mjs --runs 10 --trigger "test-generation run ${{ github.run_id }}"
+          node scripts/eval-report-write.mjs
+
+      - name: Upload eval report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: |
+            reports/eval-report.md
+            reports/eval-report-data.json
+          retention-days: 30

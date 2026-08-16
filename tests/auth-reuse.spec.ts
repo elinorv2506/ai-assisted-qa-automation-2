@@ -11,19 +11,19 @@ test.describe('storageState reuse (no per-test login)', () => {
     });
   });
 
-  test('reuse 1 — programs page loads authenticated', async ({ page }) => {
+  test('reuse 1 — programs page loads authenticated', { tag: '@smoke' }, async ({ page }) => {
     await page.goto(`${BASE_URL}/programs`);
     await expect(page.getByRole('heading', { name: 'Programs', level: 2 })).toBeVisible();
     await expect(page.getByRole('button', { name: '+ New Program' })).toBeVisible();
   });
 
-  test('reuse 2 — fresh context still authenticated', async ({ page }) => {
+  test('reuse 2 — fresh context still authenticated', { tag: '@smoke' }, async ({ page }) => {
     await page.goto(`${BASE_URL}/programs`);
     await expect(page).toHaveURL(/\/programs/);
     await expect(page.getByRole('button', { name: '+ New Program' })).toBeVisible();
   });
 
-  test('reuse 3 — third test, still no login redirect', async ({ page }) => {
+  test('reuse 3 — third test, still no login redirect', { tag: '@smoke' }, async ({ page }) => {
     await page.goto(`${BASE_URL}/programs`);
     await expect(page.getByRole('heading', { name: 'Programs', level: 2 })).toBeVisible();
   });

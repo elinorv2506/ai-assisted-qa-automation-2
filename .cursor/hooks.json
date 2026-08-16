@@ -1,7 +1,23 @@
 {
   "version": 1,
   "hooks": {
+    "postToolUse": [
+      {
+        "command": "node .cursor/hooks/eval-telemetry.mjs",
+        "matcher": "AskQuestion"
+      }
+    ],
+    "stop": [
+      {
+        "command": "node .cursor/hooks/eval-report-on-stop.mjs"
+      }
+    ],
     "afterFileEdit": [
+      {
+        "command": "node .cursor/hooks/constitution-guard.mjs",
+        "matcher": "Write",
+        "failClosed": true
+      },
       {
         "command": "node .cursor/hooks/generation-gate.mjs",
         "matcher": "tests/",

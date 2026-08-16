@@ -13,7 +13,7 @@ test.describe('Positive Flows', () => {
     await programsPage.goto();
   });
 
-  test('TC-001 — Program creation form displays required fields', async () => {
+  test('TC-001 — Program creation form displays required fields', { tag: '@sanity' }, async () => {
     await programsPage.openNewProgramForm();
 
     // Jira AC: "I see the program creation form with fields: Program Name, Description"
@@ -24,7 +24,7 @@ test.describe('Positive Flows', () => {
     await expect(programsPage.newProgramModal.createButton).toBeVisible();
   });
 
-  test('TC-002 — Program is created and appears in the list', async ({ trackProgram }) => {
+  test('TC-002 — Program is created and appears in the list', { tag: '@smoke' }, async ({ trackProgram }) => {
     // Jira AC uses exact values: "Web Development 2026" / "Full-stack web development program"
     const programName = 'Web Development 2026';
     const description = 'Full-stack web development program';
@@ -37,7 +37,7 @@ test.describe('Positive Flows', () => {
     await expect(programsPage.programRow(programName).first()).toBeVisible();
   });
 
-  test('TC-003 — Program can be created with Program Name only', async ({ trackProgram }) => {
+  test('TC-003 — Program can be created with Program Name only', { tag: '@e2e' }, async ({ trackProgram }) => {
     const programName = uniqueName('Data Science Fundamentals');
 
     await programsPage.openNewProgramForm();
@@ -48,7 +48,7 @@ test.describe('Positive Flows', () => {
     await expect(programsPage.programNameInRow(programName)).toHaveText(programName);
   });
 
-  test('TC-004 — Create button is enabled when Program Name has valid input', async () => {
+  test('TC-004 — Create button is enabled when Program Name has valid input', { tag: '@sanity' }, async () => {
     const programName = uniqueName('Cybersecurity 2026');
 
     await programsPage.openNewProgramForm();
@@ -58,7 +58,7 @@ test.describe('Positive Flows', () => {
     await expect(programsPage.newProgramModal.createButton).toBeEnabled();
   });
 
-  test('TC-005 — New program appears without disrupting existing list entries', async ({ trackProgram }) => {
+  test('TC-005 — New program appears without disrupting existing list entries', { tag: '@e2e' }, async ({ trackProgram }) => {
     const existingProgram = uniqueName('Mobile App Development 2025');
     const newProgram = uniqueName('Cloud Engineering 2026');
     const description = 'AWS and Azure fundamentals';
@@ -83,7 +83,7 @@ test.describe('Negative Flows', () => {
     await programsPage.goto();
   });
 
-  test('TC-006 — Empty Program Name keeps Create disabled', async () => {
+  test('TC-006 — Empty Program Name keeps Create disabled', { tag: '@regression' }, async () => {
     await programsPage.openNewProgramForm();
 
     // Jira AC: "I leave the Program Name field empty" → "Create button is disabled"
@@ -92,7 +92,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.newProgramModal.dialog).toBeVisible();
   });
 
-  test('TC-007 — Whitespace-only Program Name does not enable Create', async () => {
+  test('TC-007 — Whitespace-only Program Name does not enable Create', { tag: '@regression' }, async () => {
     const programName = uniqueName('Whitespace Guard');
 
     await programsPage.openNewProgramForm();
@@ -103,7 +103,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-009 — Cancel/close does not create a program', async () => {
+  test('TC-009 — Cancel/close does not create a program', { tag: '@regression' }, async () => {
     const programName = uniqueName('UX Design 2026');
     const description = 'Human-centered design principles';
 
@@ -115,7 +115,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(0);
   });
 
-  test.fixme('TC-010 — Duplicate program name is rejected or handled per business rules', async ({ trackProgram }) => {
+  test.fixme('TC-010 — Duplicate program name is rejected or handled per business rules', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('Web Development 2026');
 
     await programsPage.openNewProgramForm();
@@ -130,7 +130,7 @@ test.describe('Negative Flows', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(1);
   });
 
-  test('TC-011 — Create does not succeed on network/server failure', async ({ page }) => {
+  test('TC-011 — Create does not succeed on network/server failure', { tag: '@regression' }, async ({ page }) => {
     const programName = uniqueName('AI Engineering 2026');
     const description = 'Machine learning and NLP';
 
@@ -167,7 +167,7 @@ test.describe('Edge Cases', () => {
     await programsPage.goto();
   });
 
-  test('TC-012 — Minimum-length Program Name (single character)', async ({ trackProgram }) => {
+  test('TC-012 — Minimum-length Program Name (single character)', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = String.fromCharCode(65 + (Date.now() % 26));
     const description = `Single letter program name test ${Date.now()}`;
 
@@ -178,7 +178,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(programName).last()).toBeVisible();
   });
 
-  test.fixme('TC-013 — Maximum-length Program Name boundary', async ({ trackProgram }) => {
+  test.fixme('TC-013 — Maximum-length Program Name boundary', { tag: '@regression' }, async ({ trackProgram }) => {
     const maxName = `${'W'.repeat(255)} ${Date.now()}`;
     const overMaxName = `${'W'.repeat(256)} ${Date.now()}`;
 
@@ -195,7 +195,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(overMaxName)).toHaveCount(0);
   });
 
-  test.fixme('TC-014 — Maximum-length Description boundary', async ({ trackProgram }) => {
+  test.fixme('TC-014 — Maximum-length Description boundary', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('Blockchain Basics 2026');
     const maxDescription = 'D'.repeat(2000);
     const overMaxDescription = 'D'.repeat(2001);
@@ -214,7 +214,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(overflowName)).toHaveCount(0);
   });
 
-  test('TC-015 — Special characters in Program Name', async ({ trackProgram }) => {
+  test('TC-015 — Special characters in Program Name', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('C++ & C# Dev (2026) — "Advanced"');
     const description = 'Covers C++, C#, and related tooling';
 
@@ -224,7 +224,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(programName)).toBeVisible();
   });
 
-  test('TC-016 — Unicode and emoji in Program Name and Description', async ({ trackProgram }) => {
+  test('TC-016 — Unicode and emoji in Program Name and Description', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('תוכנית פיתוח אתרים 2026 🎓');
     const description = 'תיאור בעברית — full-stack program';
 
@@ -234,7 +234,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(programName)).toBeVisible();
   });
 
-  test.fixme('TC-017 — Leading and trailing whitespace in Program Name', async ({ trackProgram }) => {
+  test.fixme('TC-017 — Leading and trailing whitespace in Program Name', { tag: '@regression' }, async ({ trackProgram }) => {
     const coreName = uniqueName('Game Development 2026');
     const paddedName = `  ${coreName}  `;
     const description = 'Unity and Unreal basics';
@@ -248,7 +248,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(paddedName)).toHaveCount(0);
   });
 
-  test('TC-018 — HTML/script injection in Description', async ({ page, trackProgram }) => {
+  test('TC-018 — HTML/script injection in Description', { tag: '@regression' }, async ({ page, trackProgram }) => {
     const programName = uniqueName('Secure Coding 2026');
     const maliciousDescription = "<script>alert('xss')</script><img src=x onerror=alert(1)>";
 
@@ -263,7 +263,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(programName)).toBeVisible();
   });
 
-  test.fixme('TC-019 — Rapid double-click on Create', async ({ trackProgram }) => {
+  test.fixme('TC-019 — Rapid double-click on Create', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('DevOps Pipeline 2026');
     const description = 'CI/CD and infrastructure as code';
 
@@ -279,7 +279,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.programRow(programName)).toHaveCount(1);
   });
 
-  test('TC-020 — Program list sort/order after creation', async ({ trackProgram }) => {
+  test('TC-020 — Program list sort/order after creation', { tag: '@regression' }, async ({ trackProgram }) => {
     const programName = uniqueName('Quantum Computing Intro 2026');
     const description = 'Qubits and algorithms overview';
 
@@ -290,7 +290,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.firstProgramNameText(programName)).toBeVisible();
   });
 
-  test('TC-021 — AI Generation Config section displays with defaults', async () => {
+  test('TC-021 — AI Generation Config section displays with defaults', { tag: '@sanity' }, async () => {
     await programsPage.openNewProgramForm();
 
     await expect(programsPage.newProgramModal.showAiConfigToggle).toBeVisible();
@@ -305,7 +305,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.newProgramModal.defaultExamHoursInput).toHaveValue('3');
   });
 
-  test('TC-022 — Programs page layout and list structure', async ({ trackProgram }) => {
+  test('TC-022 — Programs page layout and list structure', { tag: '@sanity' }, async ({ trackProgram }) => {
     await expect(programsPage.heading).toBeVisible();
     await expect(programsPage.subtitle).toBeVisible();
     await expect(programsPage.newProgramButton).toBeVisible();
@@ -319,7 +319,7 @@ test.describe('Edge Cases', () => {
     await expect(programsPage.firstProgramRow()).toBeVisible();
   });
 
-  test('TC-023 — Modal dismiss via X close button', async () => {
+  test('TC-023 — Modal dismiss via X close button', { tag: '@regression' }, async () => {
     const programName = uniqueName('Dismiss Test 2026');
 
     await programsPage.openNewProgramForm();

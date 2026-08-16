@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { ProgramsPage } from '../pages/ProgramsPage';
 
-test.describe('Programs accessibility', { tag: '@regression' }, () => {
+test.describe('Programs accessibility', () => {
   let programsPage: ProgramsPage;
 
   test.beforeEach(async ({ page }) => {
@@ -16,13 +16,13 @@ test.describe('Programs accessibility', { tag: '@regression' }, () => {
     await programsPage.goto();
   });
 
-  test.fixme('Programs page has no accessibility violations', async ({ page }) => {
+  test.fixme('Programs page has no accessibility violations', { tag: '@regression' }, async ({ page }) => {
     const results = await new AxeBuilder({ page }).analyze();
 
     expect(results.violations).toEqual([]);
   });
 
-  test.fixme('New Program modal has no accessibility violations', async ({ page }) => {
+  test.fixme('New Program modal has no accessibility violations', { tag: '@regression' }, async ({ page }) => {
     await programsPage.openNewProgramForm();
 
     const modalSelector = await programsPage.newProgramModal.axeScanIncludeSelector();
